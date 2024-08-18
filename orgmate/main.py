@@ -17,6 +17,14 @@ class OrgMate(Cmd):
         self.root = Task(getpass.getuser())
         self._select_task(self.root)
 
+    def do_add(self, arg):
+        subtask = Task(arg)
+        self.task.append_subtask(subtask)
+
+    def do_list(self, arg):
+        for task in self.task.subtasks:
+            print(task.name)
+
     def do_EOF(self, arg):
         return True
 
