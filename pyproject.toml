@@ -1,0 +1,10 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "orgmate"
+version = "0.1"
+
+[project.scripts]
+orgmate = "orgmate.main:main"
