@@ -3,5 +3,5 @@ class Task:
         self.name = name
         self.subtasks = []
 
-    def append_subtask(self, subtask):
+    def add(self, subtask):
         self.subtasks.append(subtask)
