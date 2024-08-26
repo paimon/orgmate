@@ -18,6 +18,12 @@ class OrgMate(Cmd):
         self.task = task
         self.prompt = f'{task.name} > '
 
+    def _list_subtasks(self, max_depth=None):
+        self.last_nodes.clear()
+        for idx, node in enumerate(self.task.iter_subtasks(max_depth), 1):
+            print(idx, '\t'* node.depth + node.task.name)
+            self.last_nodes.append(node)
+
     def preloop(self):
         self.db = shelve.open('state')
         if not self.clear_state and 'root' in self.db:
@@ -25,7 +31,7 @@ class OrgMate(Cmd):
         else:
             self.root = Task(getpass.getuser())
         self._select_task(self.root)
-        self.last_list = []
+        self.last_nodes = []
 
     def postloop(self):
         self.db['root'] = self.root
@@ -35,18 +41,18 @@ class OrgMate(Cmd):
         subtask = Task(arg)
         self.task.add(subtask)
 
-    def do_list(self, arg):
-        self.last_list.clear()
-        for idx, task in enumerate(self.task.subtasks, 1):
-            print(idx, task.name)
-            self.last_list.append(task)
+    def do_list(self, _):
+        self._list_subtasks(1)
+
+    def do_tree(self, _):
+        self._list_subtasks()
 
     def do_sel(self, arg):
         if not arg:
             self._select_task(self.root)
             return
         idx = int(arg) - 1
-        self._select_task(self.last_list[idx])
+        self._select_task(self.last_nodes[idx].task)
 
     def do_EOF(self, _):
         return True
