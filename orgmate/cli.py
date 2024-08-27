@@ -50,5 +50,9 @@ class CLI(Cmd):
         idx = int(arg) - 1
         self._select_task(self.last_nodes[idx].task)
 
+    def do_del(self, arg):
+        idx = int(arg) - 1
+        self.last_nodes[idx].delete()
+
     def do_EOF(self, _):
         return True

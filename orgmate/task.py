@@ -4,6 +4,9 @@ class Node:
         self.task = task
         self.depth = depth
 
+    def delete(self):
+        self.parent.subtasks.remove(self.task)
+
 
 class Task:
     def __init__(self, name):
