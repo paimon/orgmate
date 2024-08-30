@@ -60,12 +60,34 @@ def make_tree_parser():
     return result
 
 
+def make_rm_parser():
+    result = ArgumentParser(prog='rm')
+    result.add_argument('node_index', type=int, nargs='+')
+    return result
+
+
+def make_ln_parser():
+    result = ArgumentParser(prog='ln')
+    result.add_argument('-b', '--before', action='store_true')
+    result.add_argument('node_index', type=int, nargs='+')
+    result.add_argument('dest', type=int)
+    return result
+
+
+def make_mv_parser():
+    result = ArgumentParser(prog='mv')
+    result.add_argument('-b', '--before', action='store_true')
+    result.add_argument('node_index', type=int, nargs='+')
+    result.add_argument('dest', type=int)
+    return result
+
+
 class CLI(Cmd):
     def __init__(self, clear_state):
         super().__init__()
         self.clear_state = clear_state
         self.aliases = {
-            'list': 'tree -d 1'
+            'ls': 'tree -d 1'
         }
 
     def _select_task(self, task):
@@ -134,9 +156,39 @@ class CLI(Cmd):
             print(idx, '\t'* node.depth + node.task.name)
             self.last_nodes.append(node)
 
-    def do_del(self, arg):
-        idx = int(arg) - 1
-        self.last_nodes[idx].delete()
+    rm_parser = make_rm_parser()
+    help_rm = make_helper(rm_parser)
+
+    @cmd_guard(rm_parser)
+    def do_rm(self, args):
+        for idx in args.node_index:
+            self._get_node(idx).remove()
+
+    ln_parser = make_ln_parser()
+    help_ln = make_helper(ln_parser)
+
+    @cmd_guard(ln_parser)
+    def do_ln(self, args):
+        if args.before:
+            add_func = self._get_node(args.dest).insert
+        else:
+            add_func = self._get_node(args.dest).task.add
+        for idx in args.node_index:
+            add_func(self._get_node(idx).task)
+
+    mv_parser = make_mv_parser()
+    help_mv = make_helper(mv_parser)
+
+    @cmd_guard(mv_parser)
+    def do_mv(self, args):
+        if args.before:
+            add_func = self._get_node(args.dest).insert
+        else:
+            add_func = self._get_node(args.dest).task.add
+        for idx in args.node_index:
+            node = self._get_node(idx)
+            node.remove()
+            add_func(node.task)
 
     def do_EOF(self, _):
         return True

@@ -9,7 +9,7 @@ class Node:
         idx = subtasks.index(self.task)
         subtasks.insert(idx, subtask)
 
-    def delete(self):
+    def remove(self):
         self.parent.subtasks.remove(self.task)
 
 
