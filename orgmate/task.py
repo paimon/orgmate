@@ -4,6 +4,11 @@ class Node:
         self.task = task
         self.depth = depth
 
+    def insert(self, subtask):
+        subtasks = self.parent.subtasks
+        idx = subtasks.index(self.task)
+        subtasks.insert(idx, subtask)
+
     def delete(self):
         self.parent.subtasks.remove(self.task)
 

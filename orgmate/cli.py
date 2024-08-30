@@ -32,9 +32,9 @@ class cmd_guard:
 
 
 def make_helper(parser):
-    def result(cli):
+    def result(_):
         message = parser.format_help()
-        print(message)
+        print(message, end='')
     return result
 
 
@@ -43,8 +43,7 @@ def make_add_parser():
     result.add_argument('task_name', nargs='+')
     group = result.add_mutually_exclusive_group()
     group.add_argument('-b', '--before', type=int)
-    group.add_argument('-t', '--to', type=int)
-    group.add_argument('-a', '--after', type=int)
+    group.add_argument('-n', '--node', type=int)
     return result
 
 
@@ -54,20 +53,24 @@ def make_sel_parser():
     return result
 
 
+def make_tree_parser():
+    result = ArgumentParser(prog='list')
+    result.add_argument('-n', '--node', type=int)
+    result.add_argument('-d', '--depth', type=int)
+    return result
+
+
 class CLI(Cmd):
     def __init__(self, clear_state):
         super().__init__()
         self.clear_state = clear_state
+        self.aliases = {
+            'list': 'tree -d 1'
+        }
 
     def _select_task(self, task):
         self.task = task
         self.prompt = f'{task.name} > '
-
-    def _list_subtasks(self, max_depth=None):
-        self.last_nodes.clear()
-        for idx, node in enumerate(self.task.iter_subtasks(max_depth)):
-            print(idx, '\t'* node.depth + node.task.name)
-            self.last_nodes.append(node)
 
     def _get_node(self, idx):
         try:
@@ -83,6 +86,12 @@ class CLI(Cmd):
             self.root = Task(getpass.getuser())
         self._select_task(self.root)
         self.last_nodes = []
+
+    def precmd(self, line):
+        for key, val in self.aliases.items():
+            if line.startswith(key):
+                return val + line.removeprefix(key)
+        return line
 
     def postloop(self):
         self.db['root'] = self.root
@@ -104,15 +113,26 @@ class CLI(Cmd):
 
     @cmd_guard(add_parser)
     def do_add(self, args):
-        for name in args.names:
+        if args.before is not None:
+            add_func = self._get_node(args.before).insert
+        elif args.node is not None:
+            add_func = self._get_node(args.node).task.add
+        else:
+            add_func = self.task.add
+        for name in args.task_name:
             subtask = Task(name)
-            self.task.add(subtask)
+            add_func(subtask)
 
-    def do_list(self, _):
-        self._list_subtasks(1)
+    tree_parser = make_tree_parser()
+    help_tree = make_helper(tree_parser)
 
-    def do_tree(self, _):
-        self._list_subtasks()
+    @cmd_guard(tree_parser)
+    def do_tree(self, args):
+        self.last_nodes.clear()
+        task = self.task if args.node is None else self._get_node(args.node).task
+        for idx, node in enumerate(task.iter_subtasks(args.depth)):
+            print(idx, '\t'* node.depth + node.task.name)
+            self.last_nodes.append(node)
 
     def do_del(self, arg):
         idx = int(arg) - 1
