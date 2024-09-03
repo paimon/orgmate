@@ -8,7 +8,7 @@ import shlex
 from orgmate.task import Task
 
 
-class TaskIndexError(Exception):
+class NodeIndexError(Exception):
     pass
 
 
@@ -26,7 +26,7 @@ class cmd_guard:
                 return
             try:
                 return cmd_handler(cli, args)
-            except TaskIndexError:
+            except NodeIndexError:
                 print('Node index out of range')
         return result
 
@@ -43,7 +43,7 @@ def make_add_parser():
     result.add_argument('task_name', nargs='+')
     group = result.add_mutually_exclusive_group()
     group.add_argument('-b', '--before', type=int)
-    group.add_argument('-n', '--node', type=int)
+    group.add_argument('-i', '--index', type=int)
     return result
 
 
@@ -55,7 +55,7 @@ def make_sel_parser():
 
 def make_tree_parser():
     result = ArgumentParser(prog='list')
-    result.add_argument('-n', '--node', type=int)
+    result.add_argument('-i', '--index', type=int)
     result.add_argument('-d', '--depth', type=int)
     return result
 
@@ -82,6 +82,14 @@ def make_mv_parser():
     return result
 
 
+def make_set_parser():
+    result = ArgumentParser(prog='set')
+    result.add_argument('-i', '--index', type=int)
+    result.add_argument('key', choices=['name'])
+    result.add_argument('value')
+    return result
+
+
 class CLI(Cmd):
     def __init__(self, clear_state):
         super().__init__()
@@ -98,7 +106,7 @@ class CLI(Cmd):
         try:
             return self.last_nodes[idx]
         except IndexError:
-            raise TaskIndexError
+            raise NodeIndexError
 
     def preloop(self):
         self.db = shelve.open('state')
@@ -137,8 +145,8 @@ class CLI(Cmd):
     def do_add(self, args):
         if args.before is not None:
             add_func = self._get_node(args.before).insert
-        elif args.node is not None:
-            add_func = self._get_node(args.node).task.add
+        elif args.index is not None:
+            add_func = self._get_node(args.index).task.add
         else:
             add_func = self.task.add
         for name in args.task_name:
@@ -151,7 +159,7 @@ class CLI(Cmd):
     @cmd_guard(tree_parser)
     def do_tree(self, args):
         self.last_nodes.clear()
-        task = self.task if args.node is None else self._get_node(args.node).task
+        task = self.task if args.index is None else self._get_node(args.index).task
         for idx, node in enumerate(task.iter_subtasks(args.depth)):
             print(idx, '\t'* node.depth + node.task.name)
             self.last_nodes.append(node)
@@ -189,6 +197,14 @@ class CLI(Cmd):
             node = self._get_node(idx)
             node.remove()
             add_func(node.task)
+
+    set_parser = make_set_parser()
+    help_set = make_helper(set_parser)
+
+    @cmd_guard(set_parser)
+    def do_set(self, args):
+        task = self.task if args.index is None else self._get_node(args.index).task
+        setattr(task, args.key, args.value)
 
     def do_EOF(self, _):
         return True
