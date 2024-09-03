@@ -1,3 +1,19 @@
+from enum import Enum, auto
+
+
+class State(Enum):
+    NEW = auto()
+    ACTIVE = auto()
+    IDLE = auto()
+    FINISHED = auto()
+
+
+class Flow(Enum):
+    PARALLEL = auto()
+    EXCLUSIVE = auto()
+    SEQUENTIAL = auto()
+
+
 class Node:
     def __init__(self, parent, task, depth):
         self.parent = parent
@@ -17,6 +33,8 @@ class Task:
     def __init__(self, name):
         self.name = name
         self.subtasks = []
+        self.state = State.NEW
+        self.flow = Flow.PARALLEL
 
     def add(self, subtask):
         self.subtasks.append(subtask)

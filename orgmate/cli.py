@@ -5,7 +5,8 @@ import getpass
 import shelve
 import shlex
 
-from orgmate.task import Task
+from orgmate.table import Table
+from orgmate.task import Flow, State, Task
 
 
 class NodeIndexError(Exception):
@@ -85,8 +86,14 @@ def make_mv_parser():
 def make_set_parser():
     result = ArgumentParser(prog='set')
     result.add_argument('-i', '--index', type=int)
-    result.add_argument('key', choices=['name'])
+    result.add_argument('key', choices=['name', 'flow'])
     result.add_argument('value')
+    return result
+
+
+def make_info_parser():
+    result = ArgumentParser(prog='info')
+    result.add_argument('-i', '--index', type=int)
     return result
 
 
@@ -109,7 +116,7 @@ class CLI(Cmd):
             raise NodeIndexError
 
     def preloop(self):
-        self.db = shelve.open('state')
+        self.db = shelve.open('data')
         if not self.clear_state and 'root' in self.db:
             self.root = self.db['root']
         else:
@@ -160,9 +167,12 @@ class CLI(Cmd):
     def do_tree(self, args):
         self.last_nodes.clear()
         task = self.task if args.index is None else self._get_node(args.index).task
+        table = Table(3)
+        table.cols[0].align = '>'
         for idx, node in enumerate(task.iter_subtasks(args.depth)):
-            print(idx, '\t'* node.depth + node.task.name)
+            table.add_row(idx, '\t'* node.depth + node.task.name, node.task.state.name)
             self.last_nodes.append(node)
+        table.print()
 
     rm_parser = make_rm_parser()
     help_rm = make_helper(rm_parser)
@@ -204,7 +214,25 @@ class CLI(Cmd):
     @cmd_guard(set_parser)
     def do_set(self, args):
         task = self.task if args.index is None else self._get_node(args.index).task
-        setattr(task, args.key, args.value)
+        value = args.value
+        match args.key:
+            case 'state':
+                value = State[value.upper()]
+            case 'flow':
+                value = Flow[value.upper()]
+        setattr(task, args.key, value)
+
+    info_parser = make_info_parser()
+    help_info = make_helper(info_parser)
+
+    @cmd_guard(info_parser)
+    def do_info(self, args):
+        task = self.task if args.index is None else self._get_node(args.index).task
+        table = Table(2)
+        table.add_row('Name', task.name)
+        table.add_row('State', task.state.name)
+        table.add_row('Flow', task.flow.name)
+        table.print()
 
     def do_EOF(self, _):
         return True
