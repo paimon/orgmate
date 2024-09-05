@@ -6,7 +6,7 @@ import shelve
 import shlex
 
 from orgmate.table import Table
-from orgmate.task import Flow, State, Task
+from orgmate.task import Flow, State, StateInvariantViolation, Task
 
 
 class NodeIndexError(Exception):
@@ -29,6 +29,8 @@ class cmd_guard:
                 return cmd_handler(cli, args)
             except NodeIndexError:
                 print('Node index out of range')
+            except StateInvariantViolation:
+                print('State invariant violation')
         return result
 
 
@@ -55,9 +57,9 @@ def make_sel_parser():
 
 
 def make_tree_parser():
-    result = ArgumentParser(prog='list')
-    result.add_argument('-i', '--index', type=int)
+    result = ArgumentParser(prog='tree')
     result.add_argument('-d', '--depth', type=int)
+    result.add_argument('node_index', type=int, nargs='?')
     return result
 
 
@@ -85,15 +87,15 @@ def make_mv_parser():
 
 def make_set_parser():
     result = ArgumentParser(prog='set')
-    result.add_argument('-i', '--index', type=int)
-    result.add_argument('key', choices=['name', 'flow'])
+    result.add_argument('key', choices=['name', 'flow', 'state'])
     result.add_argument('value')
+    result.add_argument('node_index', type=int, nargs='*')
     return result
 
 
 def make_info_parser():
     result = ArgumentParser(prog='info')
-    result.add_argument('-i', '--index', type=int)
+    result.add_argument('node_index', type=int, nargs='?')
     return result
 
 
@@ -102,7 +104,11 @@ class CLI(Cmd):
         super().__init__()
         self.clear_state = clear_state
         self.aliases = {
-            'ls': 'tree -d 1'
+            'ls': 'tree -d 1',
+            'restart': 'set state new',
+            'start': 'set state active',
+            'pause': 'set state idle',
+            'finish': 'set state finished',
         }
 
     def _select_task(self, task):
@@ -166,11 +172,11 @@ class CLI(Cmd):
     @cmd_guard(tree_parser)
     def do_tree(self, args):
         self.last_nodes.clear()
-        task = self.task if args.index is None else self._get_node(args.index).task
+        task = self.task if args.node_index is None else self._get_node(args.node_index).task
         table = Table(3)
         table.cols[0].align = '>'
         for idx, node in enumerate(task.iter_subtasks(args.depth)):
-            table.add_row(idx, '\t'* node.depth + node.task.name, node.task.state.name)
+            table.add_row(idx, '\t' * node.depth + node.task.name, node.task.state.name)
             self.last_nodes.append(node)
         table.print()
 
@@ -213,21 +219,25 @@ class CLI(Cmd):
 
     @cmd_guard(set_parser)
     def do_set(self, args):
-        task = self.task if args.index is None else self._get_node(args.index).task
         value = args.value
         match args.key:
             case 'state':
                 value = State[value.upper()]
             case 'flow':
                 value = Flow[value.upper()]
-        setattr(task, args.key, value)
+        if not args.node_index:
+            setattr(self.task, args.key, value)
+            return
+        for idx in args.node_index:
+            task = self._get_node(idx).task
+            setattr(task, args.key, value)
 
     info_parser = make_info_parser()
     help_info = make_helper(info_parser)
 
     @cmd_guard(info_parser)
     def do_info(self, args):
-        task = self.task if args.index is None else self._get_node(args.index).task
+        task = self.task if args.node_index is None else self._get_node(args.node_index).task
         table = Table(2)
         table.add_row('Name', task.name)
         table.add_row('State', task.state.name)
