@@ -41,18 +41,18 @@ def make_helper(parser):
     return result
 
 
+def make_parser(prog):
+    result = ArgumentParser(prog=prog)
+    result.add_argument('node_index', type=int, nargs='?')
+    return result
+
+
 def make_add_parser():
     result = ArgumentParser(prog='add')
     result.add_argument('task_name', nargs='+')
     group = result.add_mutually_exclusive_group()
     group.add_argument('-b', '--before', type=int)
     group.add_argument('-i', '--index', type=int)
-    return result
-
-
-def make_sel_parser():
-    result = ArgumentParser(prog='sel')
-    result.add_argument('node_index', type=int, nargs='?')
     return result
 
 
@@ -93,12 +93,6 @@ def make_set_parser():
     return result
 
 
-def make_info_parser():
-    result = ArgumentParser(prog='info')
-    result.add_argument('node_index', type=int, nargs='?')
-    return result
-
-
 class CLI(Cmd):
     def __init__(self, clear_state):
         super().__init__()
@@ -108,7 +102,7 @@ class CLI(Cmd):
             'restart': 'set state new',
             'start': 'set state active',
             'stop': 'set state inactive',
-            'finish': 'set state finished',
+            'finish': 'set state done',
         }
 
     def _select_task(self, task):
@@ -140,7 +134,7 @@ class CLI(Cmd):
         self.db['root'] = self.root
         self.db.close()
 
-    sel_parser = make_sel_parser()
+    sel_parser = make_parser('sel')
     help_sel = make_helper(sel_parser)
 
     @cmd_guard(sel_parser)
@@ -232,7 +226,7 @@ class CLI(Cmd):
             task = self._get_node(idx).task
             setattr(task, args.key, value)
 
-    info_parser = make_info_parser()
+    info_parser = make_parser('info')
     help_info = make_helper(info_parser)
 
     @cmd_guard(info_parser)
@@ -242,6 +236,25 @@ class CLI(Cmd):
         table.add_row('Name', task.name)
         table.add_row('State', task.state.name)
         table.add_row('Flow', task.flow.name)
+        table.print()
+
+    todo_parser = make_parser('todo')
+    todo_info = make_helper(todo_parser)
+
+    @cmd_guard(todo_parser)
+    def do_todo(self, args):
+        task = self.task if args.node_index is None else self._get_node(args.node_index).task
+        table = Table(3)
+        table.cols[0].align = '>'
+        seen = set()
+        self.last_nodes.clear()
+        for node in task.iter_subtasks():
+            task = node.task
+            if task in seen or not task.get_next_states():
+                continue
+            seen.add(task)
+            table.add_row(len(self.last_nodes), task.name, task.state.name)
+            self.last_nodes.append(node)
         table.print()
 
     def do_EOF(self, _):
