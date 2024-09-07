@@ -107,7 +107,7 @@ class CLI(Cmd):
             'ls': 'tree -d 1',
             'restart': 'set state new',
             'start': 'set state active',
-            'pause': 'set state idle',
+            'stop': 'set state inactive',
             'finish': 'set state finished',
         }
 
@@ -126,7 +126,7 @@ class CLI(Cmd):
         if not self.clear_state and 'root' in self.db:
             self.root = self.db['root']
         else:
-            self.root = Task(getpass.getuser())
+            self.root = Task(getpass.getuser(), State.ACTIVE)
         self._select_task(self.root)
         self.last_nodes = []
 
@@ -176,7 +176,7 @@ class CLI(Cmd):
         table = Table(3)
         table.cols[0].align = '>'
         for idx, node in enumerate(task.iter_subtasks(args.depth)):
-            table.add_row(idx, '\t' * node.depth + node.task.name, node.task.state.name)
+            table.add_row(idx, ' ' * node.depth * 4 + node.task.name, node.task.state.name)
             self.last_nodes.append(node)
         table.print()
 

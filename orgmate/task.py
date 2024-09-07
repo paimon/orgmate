@@ -35,26 +35,66 @@ class Node:
 
 
 class Task:
-    def __init__(self, name):
+    def __init__(self, name, state=State.NEW):
         self.name = name
         self.parents = []
         self.subtasks = []
-        self.state = State.NEW
+        self.state = state
         self.flow = Flow.PARALLEL
+
+    def _prev_tasks(self):
+        for parent in self.parents:
+            if parent.flow != Flow.SEQUENTIAL:
+                continue
+            idx = self.subtasks.index(self)
+            if idx > 0:
+                yield self.subtasks[idx - 1]
+
+    def _next_tasks(self):
+        for parent in self.parents:
+            if parent.flow != Flow.SEQUENTIAL:
+                continue
+            idx = self.subtasks.index(self)
+            if idx < len(self.subtasks):
+                yield self.subtasks[idx + 1]
+
+    def _sibling_tasks(self):
+        for parent in self.parents:
+            if parent.flow != Flow.EXCLUSIVE:
+                continue
+            yield from (task for task in parent.subtasks if task is not self)
 
     def check_state(self, state):
         match state:
             case State.NEW:
-                return True
+                return (
+                    all(task.state != State.DONE for task in self.parents) and
+                    all(task.state == State.NEW for task in self.subtasks) and
+                    all(task.state == State.NEW for task in self._next_tasks())
+                )
             case State.ACTIVE:
-                return True
+                return (
+                    all(task.state == State.ACTIVE for task in self.parents) and
+                    all(task.state == State.DONE for task in self._prev_tasks()) and
+                    all(task.state == State.NEW for task in self._next_tasks()) and
+                    all(task.state != State.ACTIVE for task in self._sibling_tasks())
+                )
             case State.INACTIVE:
-                return True
+                return (
+                    all(task.state in (State.ACTIVE, State.INACTIVE) for task in self.parents) and
+                    all(task.state != State.ACTIVE for task in self.subtasks) and
+                    all(task.state == State.DONE for task in self._prev_tasks()) and
+                    all(task.state == State.NEW for task in self._next_tasks())
+                )
             case State.DONE:
-                return True
+                return (
+                    all(task.state != State.NEW for task in self.parents) and
+                    all(task.state == State.DONE for task in self.subtasks) and
+                    all(task.state == State.DONE for task in self._prev_tasks())
+                )
 
     def available_states(self):
-        return [state for state in State if self.check_state(state)]
+        return {state for state in State if self.check_state(state)}
 
     def add(self, subtask):
         self.subtasks.append(subtask)
