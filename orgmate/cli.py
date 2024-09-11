@@ -87,7 +87,7 @@ def make_mv_parser():
 
 def make_set_parser():
     result = ArgumentParser(prog='set')
-    result.add_argument('key', choices=['name', 'flow', 'state'])
+    result.add_argument('key', choices=['name', 'flow', 'state', 'priority'])
     result.add_argument('value')
     result.add_argument('node_index', type=int, nargs='*')
     return result
@@ -100,8 +100,8 @@ class CLI(Cmd):
         self.aliases = {
             'ls': 'tree -d 1',
             'restart': 'set state new',
-            'start': 'set state active',
-            'stop': 'set state inactive',
+            'activate': 'set state active',
+            'suspend': 'set state inactive',
             'finish': 'set state done',
         }
 
@@ -219,6 +219,8 @@ class CLI(Cmd):
                 value = State[value.upper()]
             case 'flow':
                 value = Flow[value.upper()]
+            case 'priority':
+                value = int(value)
         if not args.node_index:
             setattr(self.task, args.key, value)
             return
@@ -236,6 +238,7 @@ class CLI(Cmd):
         table.add_row('Name', task.name)
         table.add_row('State', task.state.name)
         table.add_row('Flow', task.flow.name)
+        table.add_row('Priority', str(task.priority))
         table.print()
 
     todo_parser = make_parser('todo')
@@ -244,17 +247,19 @@ class CLI(Cmd):
     @cmd_guard(todo_parser)
     def do_todo(self, args):
         task = self.task if args.node_index is None else self._get_node(args.node_index).task
-        table = Table(3)
-        table.cols[0].align = '>'
         seen = set()
         self.last_nodes.clear()
         for node in task.iter_subtasks():
             task = node.task
-            if task in seen or not task.get_next_states():
+            if task.priority <= 0 or task in seen or not task.get_next_states():
                 continue
             seen.add(task)
-            table.add_row(len(self.last_nodes), task.name, task.state.name)
             self.last_nodes.append(node)
+        self.last_nodes.sort(key=lambda n: n.task.priority, reverse=True)
+        table = Table(3)
+        table.cols[0].align = '>'
+        for idx, node in enumerate(self.last_nodes):
+            table.add_row(str(idx), node.task.name, node.task.state.name)
         table.print()
 
     def do_EOF(self, _):

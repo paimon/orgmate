@@ -41,6 +41,7 @@ class Task:
         self.subtasks = []
         self.state = state
         self.flow = Flow.PARALLEL
+        self.priority = 1
 
     def get_prev_tasks(self):
         for parent in self.parents:
