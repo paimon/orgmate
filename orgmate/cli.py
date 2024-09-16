@@ -87,7 +87,7 @@ def make_mv_parser():
 
 def make_set_parser():
     result = ArgumentParser(prog='set')
-    result.add_argument('key', choices=['name', 'flow', 'state', 'priority'])
+    result.add_argument('key', choices=['name', 'flow', 'state', 'priority', 'aggregate'])
     result.add_argument('value')
     result.add_argument('node_index', type=int, nargs='*')
     return result
@@ -221,6 +221,8 @@ class CLI(Cmd):
                 value = Flow[value.upper()]
             case 'priority':
                 value = int(value)
+            case 'aggregate':
+                value = (value.lower() == 'true')
         if not args.node_index:
             setattr(self.task, args.key, value)
             return
@@ -239,6 +241,8 @@ class CLI(Cmd):
         table.add_row('State', task.state.name)
         table.add_row('Flow', task.flow.name)
         table.add_row('Priority', str(task.priority))
+        table.add_row('Aggregate', str(task.aggregate))
+        table.add_row('Next states', ', '.join(state.name for state in task.get_next_states()))
         table.print()
 
     todo_parser = make_parser('todo')
