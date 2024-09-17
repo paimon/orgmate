@@ -32,7 +32,7 @@ class Node:
     def remove(self):
         self.parent.subtasks.remove(self.task)
         self.task.parents.remove(self.parent)
-        self.parent.notify_state_change()
+        self.parent.update_state()
 
 
 class Task:
@@ -42,8 +42,8 @@ class Task:
         self.subtasks = []
         self.state = state
         self.flow = Flow.PARALLEL
-        self.priority = 1
         self.aggregate = True
+        self.priority = 1
 
     def iter_prev_tasks(self):
         for parent in self.parents:
@@ -120,7 +120,7 @@ class Task:
     def add(self, subtask):
         self.subtasks.append(subtask)
         subtask.parents.append(self)
-        self.notify_state_change()
+        self.update_state()
 
     def iter_subtasks(self, max_depth=None, depth=0):
         if max_depth is not None and max_depth <= depth:
@@ -131,17 +131,26 @@ class Task:
 
     @property
     def state(self):
-        return self.__state
+        return self._state
 
     @state.setter
     def state(self, value):
         if value not in self.get_available_states():
             raise StateInvariantViolation
-        self.__state = value
+        self._state = value
         for task in self.parents:
-            task.notify_state_change()
+            task.update_state()
 
-    def notify_state_change(self):
+    @property
+    def aggregate(self):
+        return self._aggregate
+
+    @state.setter
+    def aggregate(self, value):
+        self._aggregate = value
+        self.update_state()
+
+    def update_state(self):
         if not self.aggregate or not self.subtasks:
             return
         if all(task.state == State.NEW for task in self.subtasks):
