@@ -59,6 +59,7 @@ def make_add_parser():
 def make_tree_parser():
     result = ArgumentParser(prog='tree')
     result.add_argument('-d', '--depth', type=int)
+    result.add_argument('-f', '--field', action='append', default=[])
     result.add_argument('node_index', type=int, nargs='?')
     return result
 
@@ -98,10 +99,10 @@ class CLI(Cmd):
         super().__init__()
         self.clear_state = clear_state
         self.aliases = {
-            'ls': 'tree -d 1',
+            'ls': 'tree -d 1 -f state -f progress',
             'restart': 'set state new',
-            'activate': 'set state active',
-            'suspend': 'set state inactive',
+            'start': 'set state active',
+            'stop': 'set state inactive',
             'finish': 'set state done',
         }
 
@@ -167,10 +168,12 @@ class CLI(Cmd):
     def do_tree(self, args):
         self.last_nodes.clear()
         task = self.task if args.node_index is None else self._get_node(args.node_index).task
-        table = Table(3)
+        table = Table(2 + len(args.field))
         table.cols[0].align = '>'
         for idx, node in enumerate(task.iter_subtasks(args.depth)):
-            table.add_row(idx, ' ' * node.depth * 4 + node.task.name, node.task.state.name)
+            fields = [idx, ' ' * node.depth * 4 + node.task.name]
+            fields += [getattr(node.task, field) for field in args.field]
+            table.add_row(*fields)
             self.last_nodes.append(node)
         table.print()
 
@@ -242,6 +245,7 @@ class CLI(Cmd):
         table.add_row('Flow', task.flow.name)
         table.add_row('Priority', str(task.priority))
         table.add_row('Aggregate', str(task.aggregate))
+        table.add_row('Progress', str(task.progress))
         table.add_row('Next states', ', '.join(state.name for state in task.get_next_states()))
         table.print()
 

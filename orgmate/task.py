@@ -7,15 +7,31 @@ class State(Enum):
     INACTIVE = auto()
     DONE = auto()
 
+    def __str__(self):
+        return self.name.capitalize()
+
 
 class Flow(Enum):
     PARALLEL = auto()
     EXCLUSIVE = auto()
     SEQUENTIAL = auto()
 
+    def __str__(self):
+        return self.name.capitalize()
+
 
 class StateInvariantViolation(Exception):
     pass
+
+
+def aggregate_state(subtasks):
+    if all(task.state == State.NEW for task in subtasks):
+        return State.NEW
+    if all(task.state == State.DONE for task in subtasks):
+        return State.DONE
+    if any(task.state == State.ACTIVE for task in subtasks):
+        return State.ACTIVE
+    return State.INACTIVE
 
 
 class Node:
@@ -44,6 +60,8 @@ class Task:
         self.flow = Flow.PARALLEL
         self.aggregate = True
         self.priority = 1
+        self.weight = 1.0
+        self.progress = 0
 
     def iter_prev_tasks(self):
         for parent in self.parents:
@@ -145,19 +163,33 @@ class Task:
     def aggregate(self):
         return self._aggregate
 
-    @state.setter
+    @aggregate.setter
     def aggregate(self, value):
         self._aggregate = value
         self.update_state()
 
+    @property
+    def weight(self):
+        return self._weight
+
+    @weight.setter
+    def weight(self, value):
+        self._weight = value if value >= 0 else None
+        self.progress = self.compute_progress()
+
     def update_state(self):
-        if not self.aggregate or not self.subtasks:
-            return
-        if all(task.state == State.NEW for task in self.subtasks):
-            self.state = State.NEW
-        elif all(task.state == State.DONE for task in self.subtasks):
-            self.state = State.DONE
-        elif any(task.state == State.ACTIVE for task in self.subtasks):
-            self.state = State.ACTIVE
-        else:
-            self.state = State.INACTIVE
+        if self.aggregate and self.subtasks:
+            self.state = aggregate_state(self.subtasks)
+        self.progress = self.compute_progress()
+
+    def compute_progress(self):
+        if self.state == State.DONE:
+            return 100.0
+        result, weight_sum = 0, 0
+        for task in self.subtasks:
+            progress = task.progress
+            if task.weight is None or progress is None:
+                return None
+            result += task.weight * progress
+            weight_sum += task.weight
+        return 100.0 * result / weight_sum if weight_sum > 0 else 0
