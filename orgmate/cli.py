@@ -270,5 +270,8 @@ class CLI(Cmd):
             table.add_row(str(idx), node.task.name, node.task.state.name)
         table.print()
 
+    def emptyline(self):
+        return self.onecmd('todo')
+
     def do_EOF(self, _):
         return True

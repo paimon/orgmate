@@ -126,8 +126,8 @@ class Task:
 
     def get_next_states(self):
         if self.aggregate and self.subtasks:
-            return {}
-        next_states = {}
+            return set()
+        next_states = set()
         match self.state:
             case State.NEW | State.INACTIVE:
                 next_states = {State.ACTIVE}
@@ -175,14 +175,14 @@ class Task:
     @weight.setter
     def weight(self, value):
         self._weight = value if value >= 0 else None
-        self.progress = self.compute_progress()
+        self.update_progress()
 
     def update_state(self):
         if self.aggregate and self.subtasks:
             self.state = aggregate_state(self.subtasks)
-        self.progress = self.compute_progress()
+        self.update_progress()
 
-    def compute_progress(self):
+    def _compute_progress(self):
         if self.state == State.DONE:
             return 100.0
         result, weight_sum = 0, 0
@@ -192,4 +192,7 @@ class Task:
                 return None
             result += task.weight * progress
             weight_sum += task.weight
-        return 100.0 * result / weight_sum if weight_sum > 0 else 0
+        return result / weight_sum if weight_sum > 0 else 0
+
+    def update_progress(self):
+        self.progress = 100.0 * self._compute_progress()
