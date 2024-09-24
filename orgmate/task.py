@@ -1,14 +1,7 @@
 from enum import Enum, auto
 
-
-class State(Enum):
-    NEW = auto()
-    ACTIVE = auto()
-    INACTIVE = auto()
-    DONE = auto()
-
-    def __str__(self):
-        return self.name.capitalize()
+from orgmate.log import Log
+from orgmate.state import State
 
 
 class Flow(Enum):
@@ -56,6 +49,7 @@ class Task:
         self.name = name
         self.parents = []
         self.subtasks = []
+        self.log = Log()
         self.state = state
         self.flow = Flow.PARALLEL
         self.aggregate = True
@@ -149,13 +143,13 @@ class Task:
 
     @property
     def state(self):
-        return self._state
+        return self.log.get_state()
 
     @state.setter
     def state(self, value):
         if value not in self.get_available_states():
             raise StateInvariantViolation
-        self._state = value
+        self.log.update_state(value)
         for task in self.parents:
             task.update_state()
 

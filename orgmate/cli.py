@@ -121,7 +121,7 @@ class CLI(Cmd):
         if not self.clear_state and 'root' in self.db:
             self.root = self.db['root']
         else:
-            self.root = Task(getpass.getuser(), State.ACTIVE)
+            self.root = Task(getpass.getuser())
         self._select_task(self.root)
         self.last_nodes = []
 
@@ -268,6 +268,17 @@ class CLI(Cmd):
         table.cols[0].align = '>'
         for idx, node in enumerate(self.last_nodes):
             table.add_row(str(idx), node.task.name, node.task.state.name)
+        table.print()
+
+    log_parser = make_parser('log')
+    help_log = make_helper(log_parser)
+
+    @cmd_guard(log_parser)
+    def do_log(self, args):
+        task = self.task if args.node_index is None else self._get_node(args.node_index).task
+        table = Table(2)
+        for item in task.log.items:
+            table.add_row(item.state, item.timestamp)
         table.print()
 
     def emptyline(self):
