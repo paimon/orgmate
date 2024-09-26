@@ -94,6 +94,12 @@ def make_set_parser():
     return result
 
 
+def make_alias_parser():
+    result = ArgumentParser(prog='alias')
+    result.add_argument('-e', '--edit', action='store_true')
+    return result
+
+
 class CLI(Cmd):
     def __init__(self, clear_state):
         super().__init__()
@@ -120,6 +126,7 @@ class CLI(Cmd):
         self.db = shelve.open('data')
         if not self.clear_state and 'root' in self.db:
             self.root = self.db['root']
+            self.aliases = self.db['aliases']
         else:
             self.root = Task(getpass.getuser())
         self._select_task(self.root)
@@ -133,6 +140,7 @@ class CLI(Cmd):
 
     def postloop(self):
         self.db['root'] = self.root
+        self.db['aliases'] = self.aliases
         self.db.close()
 
     sel_parser = make_parser('sel')
@@ -280,6 +288,19 @@ class CLI(Cmd):
         for item in task.log.items:
             table.add_row(item.state, item.timestamp)
         table.print()
+
+    alias_parser = make_alias_parser()
+    help_alias = make_helper(alias_parser)
+
+    @cmd_guard(alias_parser)
+    def do_alias(self, args):
+        table = Table(2)
+        for key, value in self.aliases.items():
+            table.add_row(key, value)
+        if args.edit:
+            self.aliases = {key: value for key, value in table.edit()}
+        else:
+            table.print()
 
     def emptyline(self):
         return self.onecmd('todo')
