@@ -3,42 +3,9 @@ from cmd import Cmd
 
 import getpass
 import shelve
-import shlex
 
-from orgmate.table import Table
-from orgmate.task import Flow, State, StateInvariantViolation, Task
-
-
-class NodeIndexError(Exception):
-    pass
-
-
-class cmd_guard:
-    def __init__(self, parser):
-        self.parser = parser
-
-    def __call__(self, cmd_handler):
-        parser = self.parser
-        def result(cli, args):
-            ars_list = shlex.split(args)
-            try:
-                args = parser.parse_args(ars_list)
-            except SystemExit:
-                return
-            try:
-                return cmd_handler(cli, args)
-            except NodeIndexError:
-                print('Node index out of range')
-            except StateInvariantViolation:
-                print('State invariant violation')
-        return result
-
-
-def make_helper(parser):
-    def result(_):
-        message = parser.format_help()
-        print(message, end='')
-    return result
+from orgmate.cli_utils import add_cmd_guards, Table, NodeIndexError
+from orgmate.task import Flow, State, Task
 
 
 def make_parser(prog):
@@ -47,59 +14,7 @@ def make_parser(prog):
     return result
 
 
-def make_add_parser():
-    result = ArgumentParser(prog='add')
-    result.add_argument('task_name', nargs='+')
-    group = result.add_mutually_exclusive_group()
-    group.add_argument('-b', '--before', type=int)
-    group.add_argument('-i', '--index', type=int)
-    return result
-
-
-def make_tree_parser():
-    result = ArgumentParser(prog='tree')
-    result.add_argument('-d', '--depth', type=int)
-    result.add_argument('-f', '--field', action='append', default=[])
-    result.add_argument('node_index', type=int, nargs='?')
-    return result
-
-
-def make_rm_parser():
-    result = ArgumentParser(prog='rm')
-    result.add_argument('node_index', type=int, nargs='+')
-    return result
-
-
-def make_ln_parser():
-    result = ArgumentParser(prog='ln')
-    result.add_argument('-b', '--before', action='store_true')
-    result.add_argument('node_index', type=int, nargs='+')
-    result.add_argument('dest', type=int)
-    return result
-
-
-def make_mv_parser():
-    result = ArgumentParser(prog='mv')
-    result.add_argument('-b', '--before', action='store_true')
-    result.add_argument('node_index', type=int, nargs='+')
-    result.add_argument('dest', type=int)
-    return result
-
-
-def make_set_parser():
-    result = ArgumentParser(prog='set')
-    result.add_argument('key', choices=['name', 'flow', 'state', 'priority', 'aggregate'])
-    result.add_argument('value')
-    result.add_argument('node_index', type=int, nargs='*')
-    return result
-
-
-def make_alias_parser():
-    result = ArgumentParser(prog='alias')
-    result.add_argument('-e', '--edit', action='store_true')
-    return result
-
-
+@add_cmd_guards
 class CLI(Cmd):
     def __init__(self, clear_state):
         super().__init__()
@@ -143,10 +58,8 @@ class CLI(Cmd):
         self.db['aliases'] = self.aliases
         self.db.close()
 
-    sel_parser = make_parser('sel')
-    help_sel = make_helper(sel_parser)
+    make_sel_parser = lambda _: make_parser('sel')
 
-    @cmd_guard(sel_parser)
     def do_sel(self, args):
         if args.node_index is None:
             self._select_task(self.root)
@@ -154,10 +67,14 @@ class CLI(Cmd):
         node = self._get_node(args.node_index)
         self._select_task(node.task)
 
-    add_parser = make_add_parser()
-    help_add = make_helper(add_parser)
+    def make_add_parser(self):
+        result = ArgumentParser(prog='add')
+        result.add_argument('task_name', nargs='+')
+        group = result.add_mutually_exclusive_group()
+        group.add_argument('-b', '--before', type=int)
+        group.add_argument('-i', '--index', type=int)
+        return result
 
-    @cmd_guard(add_parser)
     def do_add(self, args):
         if args.before is not None:
             add_func = self._get_node(args.before).insert
@@ -169,10 +86,13 @@ class CLI(Cmd):
             subtask = Task(name)
             add_func(subtask)
 
-    tree_parser = make_tree_parser()
-    help_tree = make_helper(tree_parser)
+    def make_tree_parser(self):
+        result = ArgumentParser(prog='tree')
+        result.add_argument('-d', '--depth', type=int)
+        result.add_argument('-f', '--field', action='append', default=[])
+        result.add_argument('node_index', type=int, nargs='?')
+        return result
 
-    @cmd_guard(tree_parser)
     def do_tree(self, args):
         self.last_nodes.clear()
         task = self.task if args.node_index is None else self._get_node(args.node_index).task
@@ -185,18 +105,22 @@ class CLI(Cmd):
             self.last_nodes.append(node)
         table.print()
 
-    rm_parser = make_rm_parser()
-    help_rm = make_helper(rm_parser)
+    def make_rm_parser(self):
+        result = ArgumentParser(prog='rm')
+        result.add_argument('node_index', type=int, nargs='+')
+        return result
 
-    @cmd_guard(rm_parser)
     def do_rm(self, args):
         for idx in args.node_index:
             self._get_node(idx).remove()
 
-    ln_parser = make_ln_parser()
-    help_ln = make_helper(ln_parser)
+    def make_ln_parser(self):
+        result = ArgumentParser(prog='ln')
+        result.add_argument('-b', '--before', action='store_true')
+        result.add_argument('node_index', type=int, nargs='+')
+        result.add_argument('dest', type=int)
+        return result
 
-    @cmd_guard(ln_parser)
     def do_ln(self, args):
         if args.before:
             add_func = self._get_node(args.dest).insert
@@ -205,10 +129,13 @@ class CLI(Cmd):
         for idx in args.node_index:
             add_func(self._get_node(idx).task)
 
-    mv_parser = make_mv_parser()
-    help_mv = make_helper(mv_parser)
+    def make_mv_parser(self):
+        result = ArgumentParser(prog='mv')
+        result.add_argument('-b', '--before', action='store_true')
+        result.add_argument('node_index', type=int, nargs='+')
+        result.add_argument('dest', type=int)
+        return result
 
-    @cmd_guard(mv_parser)
     def do_mv(self, args):
         if args.before:
             add_func = self._get_node(args.dest).insert
@@ -219,10 +146,13 @@ class CLI(Cmd):
             node.remove()
             add_func(node.task)
 
-    set_parser = make_set_parser()
-    help_set = make_helper(set_parser)
+    def make_set_parser(self):
+        result = ArgumentParser(prog='set')
+        result.add_argument('key', choices=['name', 'flow', 'state', 'priority', 'aggregate'])
+        result.add_argument('value')
+        result.add_argument('node_index', type=int, nargs='*')
+        return result
 
-    @cmd_guard(set_parser)
     def do_set(self, args):
         value = args.value
         match args.key:
@@ -241,10 +171,8 @@ class CLI(Cmd):
             task = self._get_node(idx).task
             setattr(task, args.key, value)
 
-    info_parser = make_parser('info')
-    help_info = make_helper(info_parser)
+    make_info_parser = lambda _: make_parser('info')
 
-    @cmd_guard(info_parser)
     def do_info(self, args):
         task = self.task if args.node_index is None else self._get_node(args.node_index).task
         table = Table(2)
@@ -257,10 +185,8 @@ class CLI(Cmd):
         table.add_row('Next states', ', '.join(state.name for state in task.get_next_states()))
         table.print()
 
-    todo_parser = make_parser('todo')
-    todo_info = make_helper(todo_parser)
+    make_todo_parser = lambda _: make_parser('todo')
 
-    @cmd_guard(todo_parser)
     def do_todo(self, args):
         task = self.task if args.node_index is None else self._get_node(args.node_index).task
         seen = set()
@@ -278,10 +204,8 @@ class CLI(Cmd):
             table.add_row(str(idx), node.task.name, node.task.state.name)
         table.print()
 
-    log_parser = make_parser('log')
-    help_log = make_helper(log_parser)
+    make_log_parser = lambda _: make_parser('log')
 
-    @cmd_guard(log_parser)
     def do_log(self, args):
         task = self.task if args.node_index is None else self._get_node(args.node_index).task
         table = Table(2)
@@ -289,10 +213,11 @@ class CLI(Cmd):
             table.add_row(item.state, item.timestamp)
         table.print()
 
-    alias_parser = make_alias_parser()
-    help_alias = make_helper(alias_parser)
+    def make_alias_parser(self):
+        result = ArgumentParser(prog='alias')
+        result.add_argument('-e', '--edit', action='store_true')
+        return result
 
-    @cmd_guard(alias_parser)
     def do_alias(self, args):
         table = Table(2)
         for key, value in self.aliases.items():
