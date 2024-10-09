@@ -4,7 +4,7 @@ from cmd import Cmd
 import getpass
 import shelve
 
-from orgmate.cli_utils import add_cmd_guards, Table, NodeIndexError
+from orgmate.cli_utils import add_cmd_guards, Table, NodeIndexError, edit_text
 from orgmate.task import Flow, State, Task
 
 
@@ -37,6 +37,11 @@ class CLI(Cmd):
         except IndexError:
             raise NodeIndexError
 
+    def _get_task(self, node_index):
+        if node_index is None:
+            return self.task
+        return self._get_node(node_index).task
+
     def preloop(self):
         self.db = shelve.open('data')
         if not self.clear_state and 'root' in self.db:
@@ -57,6 +62,12 @@ class CLI(Cmd):
         self.db['root'] = self.root
         self.db['aliases'] = self.aliases
         self.db.close()
+
+    def emptyline(self):
+        return self.onecmd('todo')
+
+    def do_EOF(self, _):
+        return True
 
     make_sel_parser = lambda _: make_parser('sel')
 
@@ -95,7 +106,7 @@ class CLI(Cmd):
 
     def do_tree(self, args):
         self.last_nodes.clear()
-        task = self.task if args.node_index is None else self._get_node(args.node_index).task
+        task = self._get_task(args.node_index)
         table = Table(2 + len(args.field))
         table.cols[0].align = '>'
         for idx, node in enumerate(task.iter_subtasks(args.depth)):
@@ -174,7 +185,7 @@ class CLI(Cmd):
     make_info_parser = lambda _: make_parser('info')
 
     def do_info(self, args):
-        task = self.task if args.node_index is None else self._get_node(args.node_index).task
+        task = self._get_task(args.node_index)
         table = Table(2)
         table.add_row('Name', task.name)
         table.add_row('State', task.state.name)
@@ -188,7 +199,7 @@ class CLI(Cmd):
     make_todo_parser = lambda _: make_parser('todo')
 
     def do_todo(self, args):
-        task = self.task if args.node_index is None else self._get_node(args.node_index).task
+        task = self._get_task(args.node_index)
         seen = set()
         self.last_nodes.clear()
         for node in task.iter_subtasks():
@@ -207,7 +218,7 @@ class CLI(Cmd):
     make_log_parser = lambda _: make_parser('log')
 
     def do_log(self, args):
-        task = self.task if args.node_index is None else self._get_node(args.node_index).task
+        task = self._get_task(args.node_index)
         table = Table(2)
         for item in task.log.items:
             table.add_row(item.state, item.timestamp)
@@ -237,8 +248,8 @@ class CLI(Cmd):
             table.add_row(key, value)
         table.print()
 
-    def emptyline(self):
-        return self.onecmd('todo')
+    make_note_parser = lambda _: make_parser('note')
 
-    def do_EOF(self, _):
-        return True
+    def do_note(self, args):
+        task = self._get_task(args.node_index)
+        task.note = edit_text(task.note)

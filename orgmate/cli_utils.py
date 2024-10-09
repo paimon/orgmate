@@ -45,18 +45,6 @@ class Table:
             print(template.format(*row), file=file)
         self.rows.clear()
 
-    def edit(self):
-        with NamedTemporaryFile(mode='w', delete_on_close=False) as f:
-            self.print(f)
-            f.close()
-            editor = os.environ.get('EDITOR', DEFAULT_EDITOR)
-            if subprocess.run([editor, f.name]).returncode:
-                return self.rows
-            with open(f.name, mode='r') as new_f:
-                maxsplit = len(self.cols) - 1
-                self.rows = [line.rstrip().split(maxsplit=maxsplit) for line in new_f]
-                return self.rows
-
 
 def _make_cmd_guard(cmd_handler, parser_factory):
     def result(cli, args):
@@ -96,3 +84,14 @@ def add_cmd_guards(cls):
         setattr(cls, attr, _make_cmd_guard(cmd_handler, parser_factory))
         setattr(cls, HELP_TEMPLATE.format(cmd_name), _make_helper(parser_factory))
     return cls
+
+
+def edit_text(text):
+    with NamedTemporaryFile(mode='w', delete_on_close=False) as f:
+        f.write(text)
+        f.close()
+        editor = os.environ.get('EDITOR', DEFAULT_EDITOR)
+        if subprocess.run([editor, f.name]).returncode:
+            return text
+        with open(f.name, mode='r') as new_f:
+            return new_f.read()
