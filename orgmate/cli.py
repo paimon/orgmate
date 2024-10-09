@@ -215,17 +215,27 @@ class CLI(Cmd):
 
     def make_alias_parser(self):
         result = ArgumentParser(prog='alias')
-        result.add_argument('-e', '--edit', action='store_true')
+        subparsers = result.add_subparsers(dest='subcmd', required=True)
+        subparsers.add_parser('ls')
+        parser_add = subparsers.add_parser('add')
+        parser_add.add_argument('key')
+        parser_add.add_argument('value')
+        parser_rm = subparsers.add_parser('rm')
+        parser_rm.add_argument('key', nargs='+')
         return result
 
     def do_alias(self, args):
+        if args.subcmd == 'add':
+            self.aliases[args.key] = args.value
+            return
+        if args.subcmd == 'rm':
+            for key in args.key:
+                self.aliases.pop(key, None)
+            return
         table = Table(2)
         for key, value in self.aliases.items():
             table.add_row(key, value)
-        if args.edit:
-            self.aliases = {key: value for key, value in table.edit()}
-        else:
-            table.print()
+        table.print()
 
     def emptyline(self):
         return self.onecmd('todo')
