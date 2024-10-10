@@ -1,8 +1,10 @@
 from dataclasses import dataclass
+from datetime import timedelta
 from functools import cache
 from tempfile import NamedTemporaryFile
 
 import os
+import re
 import shlex
 import subprocess
 
@@ -13,6 +15,7 @@ DEFAULT_EDITOR = '/usr/bin/vim'
 CMD_PREFIX = 'do_'
 PARSER_TEMPLATE = 'make_{}_parser'
 HELP_TEMPLATE = 'help_{}'
+DURATION_REGEX = re.compile(r'((?P<days>\d+)d)?\s*((?P<hours>\d+):(?P<minutes>\d+))?')
 
 
 class NodeIndexError(Exception):
@@ -95,3 +98,9 @@ def edit_text(text):
             return text
         with open(f.name, mode='r') as new_f:
             return new_f.read()
+
+
+def parse_duration(duration_str):
+    match = DURATION_REGEX.search(duration_str)
+    kwargs = {key: int(value) for key, value in match.groupdict('0').items()}
+    return timedelta(**kwargs)

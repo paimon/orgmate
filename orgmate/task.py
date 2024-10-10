@@ -49,8 +49,9 @@ class Task:
         self.name = name
         self.parents = []
         self.subtasks = []
-        self.note = ''
         self.log = Log()
+        self.jobs = []
+        self.note = ''
         self.state = state
         self.flow = Flow.PARALLEL
         self.aggregate = True
