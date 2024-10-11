@@ -5,6 +5,8 @@ from orgmate.state import State
 
 
 class Log:
+    current_time = None
+
     @dataclass
     class Item:
         state: State
@@ -19,5 +21,6 @@ class Log:
     def update_state(self, state):
         if self.items and self.get_state() == state:
             return
-        item = Log.Item(state, datetime.now())
+        timestamp = datetime.now() if self.current_time is None else self.current_time
+        item = Log.Item(state, timestamp)
         self.items.append(item)

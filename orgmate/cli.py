@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 from cmd import Cmd
+from datetime import datetime
 from dateutil.parser import parse as parse_time
 
 import getpass
@@ -7,6 +8,7 @@ import shelve
 
 from orgmate.cli_utils import add_cmd_guards, Table, NodeIndexError, edit_text, parse_duration
 from orgmate.job import Job
+from orgmate.log import Log
 from orgmate.task import Flow, State, Task
 
 
@@ -31,7 +33,7 @@ class CLI(Cmd):
 
     def _select_task(self, task):
         self.task = task
-        self.prompt = f'{task.name} > '
+        self.prompt = f'{datetime.now():%Y-%m-%d %H:%M}, {task.name} > '
 
     def _get_node(self, idx):
         try:
@@ -44,6 +46,12 @@ class CLI(Cmd):
             return self.task
         return self._get_node(node_index).task
 
+    def _apply_alias(self, line):
+        for key, val in self.aliases.items():
+            if line.startswith(key):
+                return val + line.removeprefix(key)
+        return line
+
     def preloop(self):
         self.db = shelve.open('data')
         if not self.clear_state and 'root' in self.db:
@@ -52,13 +60,21 @@ class CLI(Cmd):
         else:
             self.root = Task(getpass.getuser())
         self._select_task(self.root)
+        Job.init_schedule(self.root)
         self.last_nodes = []
+        self.last_jobs = []
 
     def precmd(self, line):
-        for key, val in self.aliases.items():
-            if line.startswith(key):
-                return val + line.removeprefix(key)
-        return line
+        current_task = self.task
+        for job in Job.iter_pending():
+            Log.current_time = job.time
+            self._select_task(job.task)
+            cmd = self._apply_alias(job.cmd)
+            self.onecmd(cmd)
+        else:
+            Log.current_time = None
+            self._select_task(current_task)
+        return self._apply_alias(line)
 
     def postloop(self):
         self.db['root'] = self.root
@@ -260,7 +276,7 @@ class CLI(Cmd):
         parser_add.add_argument('time', type=parse_time)
         parser_add.add_argument('cmd')
         parser_rm = subparsers.add_parser('rm')
-        parser_rm.add_argument('job_index', type=int)
+        parser_rm.add_argument('job_index', type=int, nargs='+')
         return result
 
     def do_sked(self, args):
@@ -269,10 +285,12 @@ class CLI(Cmd):
             Job(task, args.time, args.cmd, args.period).add()
             return
         if args.subcmd == 'rm':
-            task.jobs[args.job_index].remove()
+            for idx in args.job_index:
+                self.last_jobs[idx].remove()
             return
+        self.last_jobs = task.jobs.copy()
         table = Table(4)
-        for idx, job in enumerate(task.jobs):
+        for idx, job in enumerate(self.last_jobs):
             table.add_row(idx, job.time, job.cmd, job.period if job.period else '-')
         table.print()
 
