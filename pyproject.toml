@@ -7,4 +7,4 @@ name = "orgmate"
 version = "0.1"
 
 [project.scripts]
-orgmate = "orgmate.main:main"
+om = "orgmate.main:main"
