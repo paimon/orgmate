@@ -134,6 +134,7 @@ class Task:
     def add(self, subtask):
         self.subtasks.append(subtask)
         subtask.parents.append(self)
+        subtask.name = subtask.name.format(idx=len(self.subtasks))
         self.update_state()
 
     def iter_subtasks(self, max_depth=None, depth=0):

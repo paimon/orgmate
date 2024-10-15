@@ -37,13 +37,15 @@ class CLI(Cmd):
 
     def _get_node(self, idx):
         try:
-            return self.last_nodes[idx]
+            return self.last_nodes[idx - 1]
         except IndexError:
             raise NodeIndexError
 
     def _get_task(self, node_index):
         if node_index is None:
             return self.task
+        if node_index == 0:
+            return self.task.parents[0]
         return self._get_node(node_index).task
 
     def _apply_alias(self, line):
@@ -90,11 +92,8 @@ class CLI(Cmd):
     make_sel_parser = lambda _: make_parser('sel')
 
     def do_sel(self, args):
-        if args.node_index is None:
-            self._select_task(self.root)
-            return
-        node = self._get_node(args.node_index)
-        self._select_task(node.task)
+        task = self._get_task(args.node_index)
+        self._select_task(task)
 
     def make_add_parser(self):
         result = ArgumentParser(prog='add')
@@ -127,7 +126,7 @@ class CLI(Cmd):
         task = self._get_task(args.node_index)
         table = Table(2 + len(args.field))
         table.cols[0].align = '>'
-        for idx, node in enumerate(task.iter_subtasks(args.depth)):
+        for idx, node in enumerate(task.iter_subtasks(args.depth), 1):
             fields = [idx, ' ' * node.depth * 4 + node.task.name]
             fields += [getattr(node.task, field) for field in args.field]
             table.add_row(*fields)
@@ -229,7 +228,7 @@ class CLI(Cmd):
         self.last_nodes.sort(key=lambda n: n.task.priority, reverse=True)
         table = Table(3)
         table.cols[0].align = '>'
-        for idx, node in enumerate(self.last_nodes):
+        for idx, node in enumerate(self.last_nodes, 1):
             table.add_row(str(idx), node.task.name, node.task.state.name)
         table.print()
 
@@ -286,11 +285,11 @@ class CLI(Cmd):
             return
         if args.subcmd == 'rm':
             for idx in args.job_index:
-                self.last_jobs[idx].remove()
+                self.last_jobs[idx - 1].remove()
             return
         self.last_jobs = task.jobs.copy()
         table = Table(4)
-        for idx, job in enumerate(self.last_jobs):
+        for idx, job in enumerate(self.last_jobs, 1):
             table.add_row(idx, job.time, job.cmd, job.period if job.period else '-')
         table.print()
 
