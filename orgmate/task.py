@@ -130,7 +130,7 @@ class Task:
                 next_states = {State.INACTIVE, State.DONE}
         return next_states & self.get_available_states()
 
-    def add(self, subtask, index):
+    def add(self, subtask, index=None):
         if index is None:
             self.subtasks.append(subtask)
             index = len(self.subtasks)
