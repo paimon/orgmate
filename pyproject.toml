@@ -6,5 +6,8 @@ build-backend = "setuptools.build_meta"
 name = "orgmate"
 version = "0.1"
 
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
 [project.scripts]
 om = "orgmate.main:main"
