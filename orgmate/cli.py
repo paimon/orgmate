@@ -293,8 +293,14 @@ class CLI(Cmd):
             table.add_row(idx, job.time, job.cmd, job.period if job.period else '-')
         table.print()
 
-    make_note_parser = lambda _: make_parser('note')
+    def make_note_parser(self):
+        result = make_parser('note')
+        result.add_argument('-e', '--edit', action='store_true')
+        return result
 
     def do_note(self, args):
         task = self._get_task(args.node_index)
-        task.note = edit_text(task.note)
+        if args.edit:
+            task.note = edit_text(task.note)
+        else:
+            print(task.note, end='')
