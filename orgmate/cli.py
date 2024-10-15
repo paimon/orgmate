@@ -41,7 +41,7 @@ class CLI(Cmd):
         except IndexError:
             raise NodeIndexError
 
-    def _get_task(self, node_index, default_task):
+    def _get_task(self, node_index, default_task=None):
         if node_index is None:
             return default_task or self.task
         if node_index == 0:

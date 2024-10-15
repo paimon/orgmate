@@ -34,9 +34,8 @@ class Node:
         self.depth = depth
 
     def insert(self, subtask):
-        subtasks = self.parent.subtasks
-        idx = subtasks.index(self.task)
-        subtasks.insert(idx, subtask)
+        idx = self.parent.subtasks.index(self.task)
+        self.parent.add(subtask, idx)
 
     def remove(self):
         self.parent.subtasks.remove(self.task)
@@ -131,10 +130,14 @@ class Task:
                 next_states = {State.INACTIVE, State.DONE}
         return next_states & self.get_available_states()
 
-    def add(self, subtask):
-        self.subtasks.append(subtask)
+    def add(self, subtask, index):
+        if index is None:
+            self.subtasks.append(subtask)
+            index = len(self.subtasks)
+        else:
+            self.subtasks.insert(index, subtask)
         subtask.parents.append(self)
-        subtask.name = subtask.name.format(idx=len(self.subtasks))
+        subtask.name = subtask.name.format(index)
         self.update_state()
 
     def iter_subtasks(self, max_depth=None, depth=0):
