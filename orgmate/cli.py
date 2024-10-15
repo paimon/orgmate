@@ -41,9 +41,9 @@ class CLI(Cmd):
         except IndexError:
             raise NodeIndexError
 
-    def _get_task(self, node_index):
+    def _get_task(self, node_index, default_task):
         if node_index is None:
-            return self.task
+            return default_task or self.task
         if node_index == 0:
             return self.task.parents[0]
         return self._get_node(node_index).task
@@ -92,7 +92,7 @@ class CLI(Cmd):
     make_sel_parser = lambda _: make_parser('sel')
 
     def do_sel(self, args):
-        task = self._get_task(args.node_index)
+        task = self._get_task(args.node_index, self.root)
         self._select_task(task)
 
     def make_add_parser(self):
