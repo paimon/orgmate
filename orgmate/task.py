@@ -62,17 +62,17 @@ class Task:
         for parent in self.parents:
             if parent.flow != Flow.SEQUENTIAL:
                 continue
-            idx = self.subtasks.index(self)
+            idx = parent.subtasks.index(self)
             if idx > 0:
-                yield self.subtasks[idx - 1]
+                yield parent.subtasks[idx - 1]
 
     def iter_next_tasks(self):
         for parent in self.parents:
             if parent.flow != Flow.SEQUENTIAL:
                 continue
-            idx = self.subtasks.index(self)
-            if idx < len(self.subtasks):
-                yield self.subtasks[idx + 1]
+            idx = parent.subtasks.index(self)
+            if idx + 1 < len(parent.subtasks):
+                yield parent.subtasks[idx + 1]
 
     def iter_sibling_tasks(self):
         for parent in self.parents:
