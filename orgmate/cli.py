@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 from cmd import Cmd
-from datetime import datetime
+from datetime import datetime, timedelta
 from dateutil.parser import parse as parse_time
 
 import getpass
@@ -30,6 +30,7 @@ class CLI(Cmd):
             'stop': 'set state inactive',
             'finish': 'set state done',
         }
+        self.last_save = datetime.now()
 
     def _select_task(self, task):
         self.task = task
@@ -78,9 +79,14 @@ class CLI(Cmd):
             self._select_task(current_task)
         return self._apply_alias(line)
 
+    def postcmd(self, stop, line):
+        if stop or timedelta(minutes=5) < datetime.now() - self.last_save:
+            self.db['aliases'] = self.aliases
+            self.db['root'] = self.root
+            self.last_save = datetime.now()
+        return stop
+
     def postloop(self):
-        self.db['root'] = self.root
-        self.db['aliases'] = self.aliases
         self.db.close()
 
     def emptyline(self):
