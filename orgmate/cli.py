@@ -131,7 +131,7 @@ class CLI(Cmd):
     def make_tree_parser(self):
         result = ArgumentParser(prog='tree')
         result.add_argument('-d', '--depth', type=int)
-        result.add_argument('-f', '--field', action='append', default=[])
+        result.add_argument('-f', '--field', action='append', choices=Task.PUBLIC_FIELDS, default=[])
         result.add_argument('node_index', type=int, nargs='?')
         return result
 
@@ -190,7 +190,7 @@ class CLI(Cmd):
 
     def make_set_parser(self):
         result = ArgumentParser(prog='set')
-        result.add_argument('key', choices=['name', 'flow', 'state', 'priority', 'aggregate'])
+        result.add_argument('key', choices=Task.PUBLIC_FIELDS)
         result.add_argument('value')
         result.add_argument('node_index', type=int, nargs='*')
         return result

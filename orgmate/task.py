@@ -44,6 +44,8 @@ class Node:
 
 
 class Task:
+    PUBLIC_FIELDS = ['name', 'flow', 'state', 'priority', 'aggregate']
+
     def __init__(self, name, state=State.NEW):
         self.name = name
         self.parents = []
