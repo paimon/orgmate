@@ -55,6 +55,11 @@ class CLI(Cmd):
                 return val + line.removeprefix(key)
         return line
 
+    def _save(self):
+        self.db['aliases'] = self.aliases
+        self.db['root'] = self.root
+        self.last_save = datetime.now()
+
     def preloop(self):
         self.db = shelve.open('data')
         if not self.clear_state and 'root' in self.db:
@@ -81,9 +86,7 @@ class CLI(Cmd):
 
     def postcmd(self, stop, line):
         if stop or timedelta(minutes=5) < datetime.now() - self.last_save:
-            self.db['aliases'] = self.aliases
-            self.db['root'] = self.root
-            self.last_save = datetime.now()
+            self._save()
         return stop
 
     def postloop(self):
@@ -93,7 +96,12 @@ class CLI(Cmd):
         return self.onecmd('todo')
 
     def do_EOF(self, _):
+        'Exit OrgMate'
         return True
+
+    def do_save(self, _):
+        'Save current state'
+        self._save()
 
     make_sel_parser = lambda _: make_parser('sel')
 
