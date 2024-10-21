@@ -236,12 +236,12 @@ class CLI(Cmd):
         task = self._get_task(args.node_index)
         table = Table(2)
         table.add_row('Name', task.name)
-        table.add_row('State', task.state.name)
-        table.add_row('Flow', task.flow.name)
+        table.add_row('State', task.state)
+        table.add_row('Flow', task.flow)
         table.add_row('Priority', str(task.priority))
         table.add_row('Aggregate', str(task.aggregate))
         table.add_row('Progress', str(task.progress))
-        table.add_row('Next states', ', '.join(state.name for state in task.get_next_states()))
+        table.add_row('Next states', ', '.join(state for state in task.get_next_states()))
         table.print()
 
     make_todo_parser = lambda _: make_parser('todo')
@@ -258,7 +258,7 @@ class CLI(Cmd):
         table = Table(3)
         table.cols[0].align = '>'
         for idx, node in enumerate(self.last_nodes, 1):
-            table.add_row(str(idx), node.task.name, node.task.state.name)
+            table.add_row(str(idx), node.task.name, node.task.state)
         table.print()
 
     make_log_parser = lambda _: make_parser('log')
