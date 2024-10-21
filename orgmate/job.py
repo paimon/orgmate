@@ -31,6 +31,9 @@ class Job:
     def __lt__(self, other):
         return self.time < other.time
 
+    def __repr__(self):
+        return f'Job(task={self.task}, time={self.time}, cmd={self.cmd}, period={self.period})'
+
     def add(self):
         self.task.jobs.append(self)
         heappush(self._schedule, self)

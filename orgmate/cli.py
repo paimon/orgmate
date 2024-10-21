@@ -5,6 +5,7 @@ from dateutil.parser import parse as parse_time
 from functools import partial
 
 import getpass
+import logging
 import shelve
 
 from orgmate.cli_utils import add_cmd_guards, Table, NodeIndexError, edit_text, parse_duration
@@ -70,6 +71,7 @@ class CLI(Cmd):
     def precmd(self, line):
         current_task = self.task
         for job in Job.iter_pending():
+            logger.debug('Running %s', job)
             Log.current_time = job.time
             self._select_task(job.task)
             self.onecmd(job.cmd)

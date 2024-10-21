@@ -90,6 +90,9 @@ class Task:
         self.weight = 1.0
         self.progress = 0
 
+    def __repr__(self):
+        return f'Task(name={self.name}, state={self.state})'
+
     def iter_prev_tasks(self):
         for parent in self.parents:
             if parent.flow != Flow.SEQUENTIAL:
