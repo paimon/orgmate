@@ -130,6 +130,7 @@ class CLI(Cmd):
 
     def make_tree_parser(self):
         result = ArgumentParser(prog='tree')
+        result.add_argument('-a', '--all', action='store_true')
         result.add_argument('-d', '--depth', type=int)
         result.add_argument('-f', '--field', action='append', choices=Task.PUBLIC_FIELDS, default=[])
         result.add_argument('node_index', type=int, nargs='?')
@@ -140,8 +141,10 @@ class CLI(Cmd):
         task = self._get_task(args.node_index)
         table = Table(2 + len(args.field))
         table.cols[0].align = '>'
-        for idx, node in enumerate(task.iter_subtasks(args.depth), 1):
-            fields = [idx, ' ' * node.depth * 4 + node.task.name]
+        for node in task.iter_subtasks(args.depth):
+            if not args.all and node.task.state == State.DONE:
+                continue
+            fields = [len(self.last_nodes) + 1, node.indented_name()]
             fields += [getattr(node.task, field) for field in args.field]
             table.add_row(*fields)
             self.last_nodes.append(node)

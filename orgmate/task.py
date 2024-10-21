@@ -33,6 +33,9 @@ class Node:
         self.task = task
         self.depth = depth
 
+    def indented_name(self):
+        return ' ' * self.depth * 4 + self.task.name
+
     def insert(self, subtask):
         idx = self.parent.subtasks.index(self.task)
         self.parent.add(subtask, idx)
