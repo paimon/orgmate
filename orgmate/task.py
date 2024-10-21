@@ -30,28 +30,6 @@ def aggregate_state(subtasks):
     return State.INACTIVE
 
 
-class NodeFilter:
-    def __init__(self, max_depth=None, skip_done=False, skip_seen=True):
-        self.max_depth = max_depth
-        self.skip_done = skip_done
-        self.skip_seen = skip_seen
-        self.seen = set()
-
-    def check(self, node):
-        if self.max_depth is not None and self.max_depth < node.depth:
-            return False
-        if self.skip_done and node.task.state == State.DONE:
-            return False
-        if node.parent in self.seen:
-            return False
-        if self.skip_seen and (node.task in self.seen):
-            return False
-        return True
-
-    def finish(self, node):
-        self.seen.add(node.task)
-
-
 class Node:
     def __init__(self, parent, task, depth):
         self.parent = parent
@@ -71,6 +49,28 @@ class Node:
         self.parent.subtasks.remove(self.task)
         self.task.parents.remove(self.parent)
         self.parent.update_state()
+
+
+class NodeFilter:
+    def __init__(self, max_depth=None, skip_done=False, skip_seen=True):
+        self.max_depth = max_depth
+        self.skip_done = skip_done
+        self.skip_seen = skip_seen
+        self.seen = set()
+
+    def check(self, node):
+        if self.max_depth is not None and self.max_depth <= node.depth:
+            return False
+        if self.skip_done and node.task.state == State.DONE:
+            return False
+        if node.parent in self.seen:
+            return False
+        if self.skip_seen and (node.task in self.seen):
+            return False
+        return True
+
+    def finish(self, node):
+        self.seen.add(node.task)
 
 
 class Task:

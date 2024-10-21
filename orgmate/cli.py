@@ -50,12 +50,6 @@ class CLI(Cmd):
             return self.task.parents[0]
         return self._get_node(node_index).task
 
-    def _apply_alias(self, line):
-        for key, val in self.aliases.items():
-            if line.startswith(key):
-                return val + line.removeprefix(key)
-        return line
-
     def _save(self):
         self.db['aliases'] = self.aliases
         self.db['root'] = self.root
@@ -78,12 +72,11 @@ class CLI(Cmd):
         for job in Job.iter_pending():
             Log.current_time = job.time
             self._select_task(job.task)
-            cmd = self._apply_alias(job.cmd)
-            self.onecmd(cmd)
+            self.onecmd(job.cmd)
         else:
             Log.current_time = None
             self._select_task(current_task)
-        return self._apply_alias(line)
+        return line
 
     def postcmd(self, stop, line):
         if stop or timedelta(minutes=5) < datetime.now() - self.last_save:
@@ -95,6 +88,16 @@ class CLI(Cmd):
 
     def emptyline(self):
         return self.onecmd('todo')
+
+    def default(self, line):
+        for key, val in self.aliases.items():
+            if line.startswith(key):
+                return self.onecmd(val + line.removeprefix(key))
+        super().default(line)
+
+    def completenames(self, text, *ignored):
+        aliases = [key for key in self.aliases if key.startswith(text)]
+        return super().completenames(text, *ignored) + aliases
 
     def do_EOF(self, _):
         'Exit OrgMate'
