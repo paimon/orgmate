@@ -4,6 +4,9 @@ from orgmate.log import Log
 from orgmate.state import State
 
 
+INDENT_WIDTH = 4
+
+
 class Flow(Enum):
     PARALLEL = auto()
     EXCLUSIVE = auto()
@@ -27,14 +30,38 @@ def aggregate_state(subtasks):
     return State.INACTIVE
 
 
+class NodeFilter:
+    def __init__(self, max_depth=None, skip_done=False, skip_seen=True):
+        self.max_depth = max_depth
+        self.skip_done = skip_done
+        self.skip_seen = skip_seen
+        self.seen = set()
+
+    def check(self, node):
+        if self.max_depth is not None and self.max_depth < node.depth:
+            return False
+        if self.skip_done and node.task.state == State.DONE:
+            return False
+        if node.parent in self.seen:
+            return False
+        if self.skip_seen and (node.task in self.seen):
+            return False
+        return True
+
+    def finish(self, node):
+        self.seen.add(node.task)
+
+
 class Node:
     def __init__(self, parent, task, depth):
         self.parent = parent
         self.task = task
         self.depth = depth
 
-    def indented_name(self):
-        return ' ' * self.depth * 4 + self.task.name
+    def get_name(self):
+        indent = ' ' * self.depth * INDENT_WIDTH
+        suffix = '/' if self.task.subtasks else ''
+        return f'{indent}{self.task.name}{suffix}'
 
     def insert(self, subtask):
         idx = self.parent.subtasks.index(self.task)
@@ -47,7 +74,7 @@ class Node:
 
 
 class Task:
-    PUBLIC_FIELDS = ['name', 'flow', 'state', 'priority', 'aggregate']
+    PUBLIC_FIELDS = ['name', 'flow', 'state', 'priority', 'aggregate', 'progress']
 
     def __init__(self, name, state=State.NEW):
         self.name = name
@@ -145,12 +172,15 @@ class Task:
         subtask.name = subtask.name.format(index)
         self.update_state()
 
-    def iter_subtasks(self, max_depth=None, depth=0):
-        if max_depth is not None and max_depth <= depth:
-            return
+    def iter_subtasks(self, node_filter=None, depth=0):
+        if node_filter is None:
+            node_filter = NodeFilter()
         for task in self.subtasks:
-            yield Node(self, task, depth)
-            yield from task.iter_subtasks(max_depth, depth + 1)
+            node = Node(self, task, depth)
+            if node_filter.check(node):
+                yield node
+                yield from task.iter_subtasks(node_filter, depth + 1)
+                node_filter.finish(node)
 
     @property
     def state(self):

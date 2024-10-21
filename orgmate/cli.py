@@ -9,7 +9,7 @@ import shelve
 from orgmate.cli_utils import add_cmd_guards, Table, NodeIndexError, edit_text, parse_duration
 from orgmate.job import Job
 from orgmate.log import Log
-from orgmate.task import Flow, State, Task
+from orgmate.task import Flow, State, Task, NodeFilter
 
 
 def make_parser(prog):
@@ -141,10 +141,9 @@ class CLI(Cmd):
         task = self._get_task(args.node_index)
         table = Table(2 + len(args.field))
         table.cols[0].align = '>'
-        for node in task.iter_subtasks(args.depth):
-            if not args.all and node.task.state == State.DONE:
-                continue
-            fields = [len(self.last_nodes) + 1, node.indented_name()]
+        node_filter = NodeFilter(max_depth=args.depth, skip_done=not args.all, skip_seen=False)
+        for idx, node in enumerate(task.iter_subtasks(node_filter), 1):
+            fields = [idx, node.get_name()]
             fields += [getattr(node.task, field) for field in args.field]
             table.add_row(*fields)
             self.last_nodes.append(node)
@@ -234,13 +233,11 @@ class CLI(Cmd):
 
     def do_todo(self, args):
         task = self._get_task(args.node_index)
-        seen = set()
         self.last_nodes.clear()
         for node in task.iter_subtasks():
             task = node.task
-            if task.priority <= 0 or task in seen or not task.get_next_states():
+            if task.priority <= 0 or not task.get_next_states():
                 continue
-            seen.add(task)
             self.last_nodes.append(node)
         self.last_nodes.sort(key=lambda n: n.task.priority, reverse=True)
         table = Table(3)
