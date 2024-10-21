@@ -63,9 +63,9 @@ class Node:
         suffix = '/' if self.task.subtasks else ''
         return f'{indent}{self.task.name}{suffix}'
 
-    def insert(self, subtask):
+    def insert(self, subtask, after=False):
         idx = self.parent.subtasks.index(self.task)
-        self.parent.add(subtask, idx)
+        self.parent.add(subtask, idx + int(after))
 
     def remove(self):
         self.parent.subtasks.remove(self.task)

@@ -2,6 +2,7 @@ from argparse import ArgumentParser
 from cmd import Cmd
 from datetime import datetime, timedelta
 from dateutil.parser import parse as parse_time
+from functools import partial
 
 import getpass
 import shelve
@@ -114,12 +115,15 @@ class CLI(Cmd):
         result.add_argument('task_name', nargs='+')
         group = result.add_mutually_exclusive_group()
         group.add_argument('-b', '--before', type=int)
+        group.add_argument('-a', '--after', type=int)
         group.add_argument('-i', '--index', type=int)
         return result
 
     def do_add(self, args):
         if args.before is not None:
             add_func = self._get_node(args.before).insert
+        elif args.after is not None:
+            add_func = partial(self._get_node(args.after).insert, after=True)
         elif args.index is not None:
             add_func = self._get_node(args.index).task.add
         else:
