@@ -165,6 +165,7 @@ class CLI(Cmd):
     def make_ln_parser(self):
         result = ArgumentParser(prog='ln')
         result.add_argument('-b', '--before', action='store_true')
+        result.add_argument('-a', '--after', action='store_true')
         result.add_argument('node_index', type=int, nargs='+')
         result.add_argument('dest', type=int)
         return result
@@ -172,6 +173,8 @@ class CLI(Cmd):
     def do_ln(self, args):
         if args.before:
             add_func = self._get_node(args.dest).insert
+        elif args.after:
+            add_func = partial(self._get_node(args.dest).insert, after=True)
         else:
             add_func = self._get_node(args.dest).task.add
         for idx in args.node_index:
@@ -180,6 +183,7 @@ class CLI(Cmd):
     def make_mv_parser(self):
         result = ArgumentParser(prog='mv')
         result.add_argument('-b', '--before', action='store_true')
+        result.add_argument('-a', '--after', action='store_true')
         result.add_argument('node_index', type=int, nargs='+')
         result.add_argument('dest', type=int)
         return result
@@ -187,6 +191,8 @@ class CLI(Cmd):
     def do_mv(self, args):
         if args.before:
             add_func = self._get_node(args.dest).insert
+        elif args.after:
+            add_func = partial(self._get_node(args.dest).insert, after=True)
         else:
             add_func = self._get_node(args.dest).task.add
         for idx in args.node_index:
