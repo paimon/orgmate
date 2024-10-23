@@ -74,7 +74,8 @@ class NodeFilter:
 
 
 class Task:
-    PUBLIC_FIELDS = ['name', 'flow', 'state', 'priority', 'aggregate', 'progress']
+    PUBLIC_FIELDS = ['name', 'flow', 'state', 'priority', 'aggregate']
+    PUBLIC_RO_FIELDS = PUBLIC_FIELDS + ['progress']
 
     def __init__(self, name, state=State.NEW):
         self.name = name

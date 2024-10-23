@@ -141,7 +141,7 @@ class CLI(Cmd):
         result = ArgumentParser(prog='tree')
         result.add_argument('-a', '--all', action='store_true')
         result.add_argument('-d', '--depth', type=int)
-        result.add_argument('-f', '--field', action='append', choices=Task.PUBLIC_FIELDS, default=[])
+        result.add_argument('-f', '--field', action='append', choices=Task.PUBLIC_RO_FIELDS, default=[])
         result.add_argument('node_index', type=int, nargs='?')
         return result
 
@@ -211,6 +211,9 @@ class CLI(Cmd):
         result.add_argument('value')
         result.add_argument('node_index', type=int, nargs='*')
         return result
+
+    def complete_set(self, text, *ignored):
+        return [f for f in Task.PUBLIC_FIELDS if f.startswith(text)]
 
     def do_set(self, args):
         value = args.value
