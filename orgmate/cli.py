@@ -14,6 +14,9 @@ from orgmate.log import Log
 from orgmate.task import Flow, State, Task, NodeFilter
 
 
+logger = logging.getLogger(__name__)
+
+
 def make_parser(prog):
     result = ArgumentParser(prog=prog)
     result.add_argument('node_index', type=int, nargs='?')
