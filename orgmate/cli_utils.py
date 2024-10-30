@@ -61,8 +61,8 @@ def _make_cmd_guard(cmd_handler, parser_factory):
             return cmd_handler(cli, args)
         except NodeIndexError:
             print('Node index out of range')
-        except StateInvariantViolation:
-            print('State invariant violation')
+        except StatusInvariantViolation:
+            print('Status invariant violation')
     return result
 
 

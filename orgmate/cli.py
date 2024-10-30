@@ -248,7 +248,7 @@ class CLI(Cmd):
         table.add_row('Priority', str(task.priority))
         table.add_row('Aggregate', str(task.aggregate))
         table.add_row('Progress', str(task.progress))
-        table.add_row('Next statuses', ', '.join(status for status in task.get_next_statuses()))
+        table.add_row('Next statuses', ', '.join(str(status) for status in task.get_next_statuses()))
         table.print()
 
     make_todo_parser = lambda _: make_parser('todo')
