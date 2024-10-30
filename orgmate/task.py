@@ -77,7 +77,7 @@ class Task:
     PUBLIC_FIELDS = ['name', 'flow', 'status', 'priority', 'aggregate']
     PUBLIC_RO_FIELDS = PUBLIC_FIELDS + ['progress']
 
-    def __init__(self, name, status=Status.NEW):
+    def __init__(self, name, status=Status.NEW, context_mode=False):
         self.name = name
         self.parents = []
         self.subtasks = []
@@ -86,10 +86,14 @@ class Task:
         self.note = ''
         self.status = status
         self.flow = Flow.PARALLEL
-        self.aggregate = True
-        self.priority = 1
         self.weight = 1.0
         self.progress = 0
+        if context_mode:
+            self.aggregate = False
+            self.priority = 0
+        else:
+            self.aggregate = True
+            self.priority = 1
 
     def __repr__(self):
         return f'Task(name={self.name}, status={self.status})'

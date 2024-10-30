@@ -120,11 +120,12 @@ class CLI(Cmd):
 
     def make_add_parser(self):
         result = ArgumentParser(prog='add')
+        result.add_argument('-c', '--context', action='store_true')
         result.add_argument('task_name', nargs='+')
         group = result.add_mutually_exclusive_group()
         group.add_argument('-b', '--before', type=int)
         group.add_argument('-a', '--after', type=int)
-        group.add_argument('-i', '--index', type=int)
+        group.add_argument('-n', '--node', type=int)
         return result
 
     def do_add(self, args):
@@ -132,12 +133,12 @@ class CLI(Cmd):
             add_func = self._get_node(args.before).insert
         elif args.after is not None:
             add_func = partial(self._get_node(args.after).insert, after=True)
-        elif args.index is not None:
-            add_func = self._get_node(args.index).task.add
+        elif args.node is not None:
+            add_func = self._get_node(args.node).task.add
         else:
             add_func = self.task.add
         for name in args.task_name:
-            subtask = Task(name)
+            subtask = Task(name, context_mode=args.context)
             add_func(subtask)
 
     def make_tree_parser(self):
@@ -302,7 +303,7 @@ class CLI(Cmd):
 
     def make_sked_parser(self):
         result = ArgumentParser(prog='sked')
-        result.add_argument('-i', '--index', type=int)
+        result.add_argument('-n', '--node', type=int)
         subparsers = result.add_subparsers(dest='subcmd', required=True)
         subparsers.add_parser('ls')
         parser_add = subparsers.add_parser('add')
@@ -314,7 +315,7 @@ class CLI(Cmd):
         return result
 
     def do_sked(self, args):
-        task = self._get_task(args.index)
+        task = self._get_task(args.node)
         if args.subcmd == 'add':
             Job(task, args.time, args.cmd, args.period).add()
             return
