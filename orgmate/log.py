@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from orgmate.state import State
+from orgmate.status import Status
 
 
 class Log:
@@ -9,18 +9,18 @@ class Log:
 
     @dataclass
     class Item:
-        state: State
+        status: Status
         timestamp: datetime
 
     def __init__(self):
         self.items = []
 
-    def get_state(self):
-        return self.items[-1].state
+    def get_status(self):
+        return self.items[-1].status
 
-    def update_state(self, state):
-        if self.items and self.get_state() == state:
+    def update_status(self, status):
+        if self.items and self.get_status() == status:
             return
         timestamp = datetime.now() if self.current_time is None else self.current_time
-        item = Log.Item(state, timestamp)
+        item = Log.Item(status, timestamp)
         self.items.append(item)

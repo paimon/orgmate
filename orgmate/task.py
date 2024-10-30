@@ -1,7 +1,7 @@
 from enum import Enum, auto
 
 from orgmate.log import Log
-from orgmate.state import State
+from orgmate.status import Status
 
 
 INDENT_WIDTH = 4
@@ -16,18 +16,18 @@ class Flow(Enum):
         return self.name.capitalize()
 
 
-class StateInvariantViolation(Exception):
+class StatusInvariantViolation(Exception):
     pass
 
 
-def aggregate_state(subtasks):
-    if all(task.state == State.NEW for task in subtasks):
-        return State.NEW
-    if all(task.state == State.DONE for task in subtasks):
-        return State.DONE
-    if any(task.state == State.ACTIVE for task in subtasks):
-        return State.ACTIVE
-    return State.INACTIVE
+def aggregate_status(subtasks):
+    if all(task.status == Status.NEW for task in subtasks):
+        return Status.NEW
+    if all(task.status == Status.DONE for task in subtasks):
+        return Status.DONE
+    if any(task.status == Status.ACTIVE for task in subtasks):
+        return Status.ACTIVE
+    return Status.INACTIVE
 
 
 class Node:
@@ -48,7 +48,7 @@ class Node:
     def remove(self):
         self.parent.subtasks.remove(self.task)
         self.task.parents.remove(self.parent)
-        self.parent.update_state()
+        self.parent.update_status()
 
 
 class NodeFilter:
@@ -61,7 +61,7 @@ class NodeFilter:
     def check(self, node):
         if self.max_depth is not None and self.max_depth <= node.depth:
             return False
-        if self.skip_done and node.task.state == State.DONE:
+        if self.skip_done and node.task.status == Status.DONE:
             return False
         if node.parent in self.seen:
             return False
@@ -74,17 +74,17 @@ class NodeFilter:
 
 
 class Task:
-    PUBLIC_FIELDS = ['name', 'flow', 'state', 'priority', 'aggregate']
+    PUBLIC_FIELDS = ['name', 'flow', 'status', 'priority', 'aggregate']
     PUBLIC_RO_FIELDS = PUBLIC_FIELDS + ['progress']
 
-    def __init__(self, name, state=State.NEW):
+    def __init__(self, name, status=Status.NEW):
         self.name = name
         self.parents = []
         self.subtasks = []
         self.log = Log()
         self.jobs = []
         self.note = ''
-        self.state = state
+        self.status = status
         self.flow = Flow.PARALLEL
         self.aggregate = True
         self.priority = 1
@@ -92,7 +92,7 @@ class Task:
         self.progress = 0
 
     def __repr__(self):
-        return f'Task(name={self.name}, state={self.state})'
+        return f'Task(name={self.name}, status={self.status})'
 
     def iter_prev_tasks(self):
         for parent in self.parents:
@@ -123,48 +123,48 @@ class Task:
             else:
                 yield parent
 
-    def check_state(self, state):
-        match state:
-            case State.NEW:
+    def check_status(self, status):
+        match status:
+            case Status.NEW:
                 return (
-                    all(task.state != State.DONE for task in self.iter_contexts()) and
-                    all(task.state == State.NEW for task in self.subtasks) and
-                    all(task.state == State.NEW for task in self.iter_next_tasks())
+                    all(task.status != Status.DONE for task in self.iter_contexts()) and
+                    all(task.status == Status.NEW for task in self.subtasks) and
+                    all(task.status == Status.NEW for task in self.iter_next_tasks())
                 )
-            case State.ACTIVE:
+            case Status.ACTIVE:
                 return (
-                    all(task.state == State.ACTIVE for task in self.iter_contexts()) and
-                    all(task.state == State.DONE for task in self.iter_prev_tasks()) and
-                    all(task.state == State.NEW for task in self.iter_next_tasks()) and
-                    all(task.state != State.ACTIVE for task in self.iter_sibling_tasks())
+                    all(task.status == Status.ACTIVE for task in self.iter_contexts()) and
+                    all(task.status == Status.DONE for task in self.iter_prev_tasks()) and
+                    all(task.status == Status.NEW for task in self.iter_next_tasks()) and
+                    all(task.status != Status.ACTIVE for task in self.iter_sibling_tasks())
                 )
-            case State.INACTIVE:
+            case Status.INACTIVE:
                 return (
-                    all(task.state in (State.ACTIVE, State.INACTIVE) for task in self.iter_contexts()) and
-                    all(task.state != State.ACTIVE for task in self.subtasks) and
-                    all(task.state == State.DONE for task in self.iter_prev_tasks()) and
-                    all(task.state == State.NEW for task in self.iter_next_tasks())
+                    all(task.status in (Status.ACTIVE, Status.INACTIVE) for task in self.iter_contexts()) and
+                    all(task.status != Status.ACTIVE for task in self.subtasks) and
+                    all(task.status == Status.DONE for task in self.iter_prev_tasks()) and
+                    all(task.status == Status.NEW for task in self.iter_next_tasks())
                 )
-            case State.DONE:
+            case Status.DONE:
                 return (
-                    all(task.state != State.NEW for task in self.iter_contexts()) and
-                    all(task.state == State.DONE for task in self.subtasks) and
-                    all(task.state == State.DONE for task in self.iter_prev_tasks())
+                    all(task.status != Status.NEW for task in self.iter_contexts()) and
+                    all(task.status == Status.DONE for task in self.subtasks) and
+                    all(task.status == Status.DONE for task in self.iter_prev_tasks())
                 )
 
-    def get_available_states(self):
-        return {state for state in State if self.check_state(state)}
+    def get_available_statuses(self):
+        return {status for status in Status if self.check_status(status)}
 
-    def get_next_states(self):
+    def get_next_statuses(self):
         if self.aggregate and self.subtasks:
             return set()
-        next_states = set()
-        match self.state:
-            case State.NEW | State.INACTIVE:
-                next_states = {State.ACTIVE}
-            case State.ACTIVE:
-                next_states = {State.INACTIVE, State.DONE}
-        return next_states & self.get_available_states()
+        next_statuses = set()
+        match self.status:
+            case Status.NEW | Status.INACTIVE:
+                next_statuses = {Status.ACTIVE}
+            case Status.ACTIVE:
+                next_statuses = {Status.INACTIVE, Status.DONE}
+        return next_statuses & self.get_available_statuses()
 
     def add(self, subtask, index=None):
         if index is None:
@@ -174,7 +174,7 @@ class Task:
             self.subtasks.insert(index, subtask)
         subtask.parents.append(self)
         subtask.name = subtask.name.format(index)
-        self.update_state()
+        self.update_status()
 
     def iter_subtasks(self, node_filter=None, depth=0):
         if node_filter is None:
@@ -187,16 +187,16 @@ class Task:
                 node_filter.finish(node)
 
     @property
-    def state(self):
-        return self.log.get_state()
+    def status(self):
+        return self.log.get_status()
 
-    @state.setter
-    def state(self, value):
-        if value not in self.get_available_states():
-            raise StateInvariantViolation
-        self.log.update_state(value)
+    @status.setter
+    def status(self, value):
+        if value not in self.get_available_statuses():
+            raise StatusInvariantViolation
+        self.log.update_status(value)
         for task in self.parents:
-            task.update_state()
+            task.update_status()
 
     @property
     def aggregate(self):
@@ -205,7 +205,7 @@ class Task:
     @aggregate.setter
     def aggregate(self, value):
         self._aggregate = value
-        self.update_state()
+        self.update_status()
 
     @property
     def weight(self):
@@ -216,13 +216,13 @@ class Task:
         self._weight = value if value >= 0 else None
         self.update_progress()
 
-    def update_state(self):
+    def update_status(self):
         if self.aggregate and self.subtasks:
-            self.state = aggregate_state(self.subtasks)
+            self.status = aggregate_status(self.subtasks)
         self.update_progress()
 
     def _compute_progress(self):
-        if self.state == State.DONE:
+        if self.status == Status.DONE:
             return 100.0
         result, weight_sum = 0, 0
         for task in self.subtasks:

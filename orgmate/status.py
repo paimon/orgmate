@@ -1,7 +1,7 @@
 from enum import Enum, auto
 
 
-class State(Enum):
+class Status(Enum):
     NEW = auto()
     ACTIVE = auto()
     INACTIVE = auto()

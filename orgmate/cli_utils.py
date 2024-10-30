@@ -8,7 +8,7 @@ import re
 import shlex
 import subprocess
 
-from orgmate.task import StateInvariantViolation
+from orgmate.task import StatusInvariantViolation
 
 
 DEFAULT_EDITOR = '/usr/bin/vim'

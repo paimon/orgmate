@@ -11,7 +11,7 @@ import shelve
 from orgmate.cli_utils import add_cmd_guards, Table, NodeIndexError, edit_text, parse_duration
 from orgmate.job import Job
 from orgmate.log import Log
-from orgmate.task import Flow, State, Task, NodeFilter
+from orgmate.task import Flow, Status, Task, NodeFilter
 
 
 logger = logging.getLogger(__name__)
@@ -29,11 +29,11 @@ class CLI(Cmd):
         super().__init__()
         self.clear_state = clear_state
         self.aliases = {
-            'ls': 'tree -d 1 -f state -f progress',
-            'restart': 'set state new',
-            'start': 'set state active',
-            'stop': 'set state inactive',
-            'finish': 'set state done',
+            'ls': 'tree -d 1 -f status -f progress',
+            'restart': 'set status new',
+            'start': 'set status active',
+            'stop': 'set status inactive',
+            'finish': 'set status done',
         }
         self.last_save = datetime.now()
 
@@ -221,8 +221,8 @@ class CLI(Cmd):
     def do_set(self, args):
         value = args.value
         match args.key:
-            case 'state':
-                value = State[value.upper()]
+            case 'status':
+                value = Status[value.upper()]
             case 'flow':
                 value = Flow[value.upper()]
             case 'priority':
@@ -242,12 +242,12 @@ class CLI(Cmd):
         task = self._get_task(args.node_index)
         table = Table(2)
         table.add_row('Name', task.name)
-        table.add_row('State', task.state)
+        table.add_row('Status', task.status)
         table.add_row('Flow', task.flow)
         table.add_row('Priority', str(task.priority))
         table.add_row('Aggregate', str(task.aggregate))
         table.add_row('Progress', str(task.progress))
-        table.add_row('Next states', ', '.join(state for state in task.get_next_states()))
+        table.add_row('Next statuses', ', '.join(status for status in task.get_next_statuses()))
         table.print()
 
     make_todo_parser = lambda _: make_parser('todo')
@@ -257,14 +257,14 @@ class CLI(Cmd):
         self.last_nodes.clear()
         for node in task.iter_subtasks():
             task = node.task
-            if task.priority <= 0 or not task.get_next_states():
+            if task.priority <= 0 or not task.get_next_statuses():
                 continue
             self.last_nodes.append(node)
         self.last_nodes.sort(key=lambda n: n.task.priority, reverse=True)
         table = Table(3)
         table.cols[0].align = '>'
         for idx, node in enumerate(self.last_nodes, 1):
-            table.add_row(str(idx), node.task.name, node.task.state)
+            table.add_row(str(idx), node.task.name, node.task.status)
         table.print()
 
     make_log_parser = lambda _: make_parser('log')
@@ -273,7 +273,7 @@ class CLI(Cmd):
         task = self._get_task(args.node_index)
         table = Table(2)
         for item in task.log.items:
-            table.add_row(item.state, item.timestamp)
+            table.add_row(item.status, item.timestamp)
         table.print()
 
     def make_alias_parser(self):
