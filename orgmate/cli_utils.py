@@ -1,3 +1,4 @@
+from argparse import ArgumentTypeError
 from dataclasses import dataclass
 from datetime import timedelta
 from functools import cache
@@ -8,8 +9,6 @@ import re
 import shlex
 import subprocess
 
-from orgmate.task import StatusInvariantViolation
-
 
 DEFAULT_EDITOR = '/usr/bin/vim'
 CMD_PREFIX = 'do_'
@@ -19,6 +18,10 @@ DURATION_REGEX = re.compile(r'((?P<days>\d+)d)?\s*((?P<hours>\d+):(?P<minutes>\d
 
 
 class NodeIndexError(Exception):
+    pass
+
+
+class StatusInvariantViolation(Exception):
     pass
 
 
@@ -52,9 +55,9 @@ class Table:
 def _make_cmd_guard(cmd_handler, parser_factory):
     def result(cli, args):
         parser = parser_factory(cli)
-        ars_list = shlex.split(args)
+        args_list = shlex.split(args)
         try:
-            args = parser.parse_args(ars_list)
+            args = parser.parse_args(args_list)
         except SystemExit:
             return
         try:
@@ -63,6 +66,8 @@ def _make_cmd_guard(cmd_handler, parser_factory):
             print('Node index out of range')
         except StatusInvariantViolation:
             print('Status invariant violation')
+        except ArgumentTypeError:
+            print('Argument type error')
     return result
 
 

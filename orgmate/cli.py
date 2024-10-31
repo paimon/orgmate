@@ -1,4 +1,4 @@
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentTypeError
 from cmd import Cmd
 from datetime import datetime, timedelta
 from dateutil.parser import parse as parse_time
@@ -8,7 +8,14 @@ import getpass
 import logging
 import shelve
 
-from orgmate.cli_utils import add_cmd_guards, Table, NodeIndexError, edit_text, parse_duration
+from orgmate.cli_utils import (
+    add_cmd_guards,
+    Table,
+    NodeIndexError,
+    StatusInvariantViolation,
+    edit_text,
+    parse_duration
+)
 from orgmate.job import Job
 from orgmate.log import Log
 from orgmate.task import Flow, Status, Task, NodeFilter
@@ -211,31 +218,41 @@ class CLI(Cmd):
 
     def make_set_parser(self):
         result = ArgumentParser(prog='set')
+        result.add_argument('-f', '--force', action='store_true')
         result.add_argument('key', choices=Task.PUBLIC_FIELDS)
         result.add_argument('value')
         result.add_argument('node_index', type=int, nargs='*')
         return result
 
-    def complete_set(self, text, *ignored):
-        return [f for f in Task.PUBLIC_FIELDS if f.startswith(text)]
+    def complete_set(self, text, line, *ignored):
+        choices = {
+            'set': Task.PUBLIC_FIELDS,
+            'status': [v.name.lower() for v in Status],
+            'flow': [v.name.lower() for v in Flow],
+            'aggregate': ['true', 'false'],
+        }
+        *_, key, value = line.split()
+        return [f for f in choices.get(key, []) if f.startswith(value)]
 
     def do_set(self, args):
         value = args.value
-        match args.key:
-            case 'status':
-                value = Status[value.upper()]
-            case 'flow':
-                value = Flow[value.upper()]
-            case 'priority':
-                value = int(value)
-            case 'aggregate':
-                value = (value.lower() == 'true')
-        if not args.node_index:
-            setattr(self.task, args.key, value)
-            return
-        for idx in args.node_index:
-            task = self._get_node(idx).task
-            setattr(task, args.key, value)
+        try:
+            match args.key:
+                case 'status':
+                    value = Status[value.upper()]
+                case 'flow':
+                    value = Flow[value.upper()]
+                case 'priority':
+                    value = int(value)
+                case 'aggregate':
+                    value = (value == 'true')
+        except:
+            raise ArgumentTypeError
+        tasks = map(self._get_task, args.node_index) if args.node_index else [self.task]
+        for t in tasks:
+            if not args.force and not t.checkattr(args.key, value):
+                raise StatusInvariantViolation
+            setattr(t, args.key, value)
 
     make_info_parser = lambda _: make_parser('info')
 

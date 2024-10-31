@@ -16,10 +16,6 @@ class Flow(Enum):
         return self.name.capitalize()
 
 
-class StatusInvariantViolation(Exception):
-    pass
-
-
 def aggregate_status(subtasks):
     if all(task.status == Status.NEW for task in subtasks):
         return Status.NEW
@@ -127,7 +123,7 @@ class Task:
             else:
                 yield parent
 
-    def check_status(self, status):
+    def _check_status(self, status):
         match status:
             case Status.NEW:
                 return (
@@ -157,7 +153,7 @@ class Task:
                 )
 
     def get_available_statuses(self):
-        return {status for status in Status if self.check_status(status)}
+        return {status for status in Status if self._check_status(status)}
 
     def get_next_statuses(self):
         if self.aggregate and self.subtasks:
@@ -196,8 +192,6 @@ class Task:
 
     @status.setter
     def status(self, value):
-        if value not in self.get_available_statuses():
-            raise StatusInvariantViolation
         self.log.update_status(value)
         for task in self.parents:
             task.update_status()
@@ -239,3 +233,9 @@ class Task:
 
     def update_progress(self):
         self.progress = 100.0 * self._compute_progress()
+
+    def checkattr(self, attr, value):
+        name = f'_check_{attr}'
+        if hasattr(self, name):
+            return getattr(self, name)(value)
+        return True
