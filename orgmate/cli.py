@@ -7,6 +7,7 @@ from functools import partial
 import getpass
 import logging
 import shelve
+import shlex
 
 from orgmate.cli_utils import (
     add_cmd_guards,
@@ -231,7 +232,7 @@ class CLI(Cmd):
             'flow': [v.name.lower() for v in Flow],
             'aggregate': ['true', 'false'],
         }
-        *_, key, value = line.split()
+        *_, key, value = shlex.split(line)
         return [f for f in choices.get(key, []) if f.startswith(value)]
 
     def do_set(self, args):
