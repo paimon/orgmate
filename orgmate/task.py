@@ -152,6 +152,18 @@ class Task:
                     all(task.status == Status.DONE for task in self.iter_prev_tasks())
                 )
 
+    def _check_flow(self, flow):
+        match flow:
+            case Flow.EXCLUSIVE:
+                return sum(t.status == Status.ACTIVE for t in self.subtasks) <= 1
+            case Flow.SEQUENTIAL:
+                return (
+                    sum(t.status == Status.ACTIVE or t.status == Status.INACTIVE for t in self.subtasks) <= 1 and
+                    all(t1.status.value >= t2.status.value for t1, t2 in zip(self.subtasks, self.subtasks[1:]))
+                )
+            case _:
+                return True
+
     def get_available_statuses(self):
         return {status for status in Status if self._check_status(status)}
 
