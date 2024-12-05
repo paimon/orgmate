@@ -101,6 +101,8 @@ class Task:
             idx = parent.subtasks.index(self)
             if idx > 0:
                 yield parent.subtasks[idx - 1]
+            if parent.aggregate:
+                yield from parent.iter_prev_tasks()
 
     def iter_next_tasks(self):
         for parent in self.parents:
@@ -109,12 +111,16 @@ class Task:
             idx = parent.subtasks.index(self)
             if idx + 1 < len(parent.subtasks):
                 yield parent.subtasks[idx + 1]
+            if parent.aggregate:
+                yield from parent.iter_next_tasks()
 
     def iter_sibling_tasks(self):
         for parent in self.parents:
             if parent.flow != Flow.EXCLUSIVE:
                 continue
             yield from (task for task in parent.subtasks if task is not self)
+            if parent.aggregate:
+                yield from parent.iter_sibling_tasks()
 
     def iter_contexts(self):
         for parent in self.parents:
