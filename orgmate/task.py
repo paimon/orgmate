@@ -32,8 +32,8 @@ class Node:
         self.task = task
         self.depth = depth
 
-    def get_name(self):
-        indent = ' ' * self.depth * INDENT_WIDTH
+    def get_name(self, flat=False):
+        indent = '' if flat else ' ' * self.depth * INDENT_WIDTH
         suffix = '/' if self.task.subtasks else ''
         return f'{indent}{self.task.name}{suffix}'
 
@@ -203,6 +203,9 @@ class Task:
                 yield node
                 yield from task.iter_subtasks(node_filter, depth + 1)
                 node_filter.finish(node)
+
+    def is_relevant(self):
+        return self.priority > 0 and self.get_next_statuses()
 
     @property
     def status(self):

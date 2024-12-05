@@ -22,6 +22,15 @@ from orgmate.log import Log
 from orgmate.task import Flow, Status, Task, NodeFilter
 
 
+DEFAULT_ALIASES = {
+    'ls': 'tree -d 1 -f status -f progress',
+    'todo': 'tree -r -f status',
+    'find': 'tree -k',
+    'do': 'set status active',
+    'pause': 'set status inactive',
+    'complete': 'set status done',
+}
+
 logger = logging.getLogger(__name__)
 
 
@@ -36,13 +45,7 @@ class CLI(Cmd):
     def __init__(self, clear_state):
         super().__init__()
         self.clear_state = clear_state
-        self.aliases = {
-            'ls': 'tree -d 1 -f status -f progress',
-            'restart': 'set status new',
-            'start': 'set status active',
-            'stop': 'set status inactive',
-            'finish': 'set status done',
-        }
+        self.aliases = DEFAULT_ALIASES
         self.last_save = datetime.now()
 
     def _select_task(self, task):
@@ -100,7 +103,7 @@ class CLI(Cmd):
         self.db.close()
 
     def emptyline(self):
-        return self.onecmd('todo')
+        return self.onecmd(DEFAULT_ALIASES['todo'])
 
     def default(self, line):
         for key, val in self.aliases.items():
@@ -151,23 +154,35 @@ class CLI(Cmd):
 
     def make_tree_parser(self):
         result = ArgumentParser(prog='tree')
-        result.add_argument('-a', '--all', action='store_true')
+        group = result.add_mutually_exclusive_group()
+        group.add_argument('-a', '--all', action='store_true')
+        group.add_argument('-r', '--relevant', action='store_true')
         result.add_argument('-d', '--depth', type=int)
         result.add_argument('-f', '--field', action='append', choices=Task.PUBLIC_RO_FIELDS, default=[])
+        result.add_argument('-k', '--keyword', type=str.lower)
         result.add_argument('node_index', type=int, nargs='?')
         return result
 
     def do_tree(self, args):
-        self.last_nodes.clear()
         task = self._get_task(args.node_index)
+        flat = args.relevant or args.keyword
+        node_filter = NodeFilter(max_depth=args.depth, skip_done=not args.all, skip_seen=flat)
+        self.last_nodes.clear()
+        for n in task.iter_subtasks(node_filter):
+            if not (args.keyword is None or args.keyword in n.task.name.lower()):
+                continue
+            if args.relevant and not n.task.is_relevant():
+                continue
+            self.last_nodes.append(n)
+        if flat:
+            self.last_nodes.sort(key=lambda n: n.task.priority, reverse=True)
+
         table = Table(2 + len(args.field))
         table.cols[0].align = '>'
-        node_filter = NodeFilter(max_depth=args.depth, skip_done=not args.all, skip_seen=False)
-        for idx, node in enumerate(task.iter_subtasks(node_filter), 1):
-            fields = [idx, node.get_name()]
+        for idx, node in enumerate(self.last_nodes, 1):
+            fields = [idx, node.get_name(flat)]
             fields += [getattr(node.task, field) for field in args.field]
             table.add_row(*fields)
-            self.last_nodes.append(node)
         table.print()
 
     def make_rm_parser(self):
@@ -269,23 +284,6 @@ class CLI(Cmd):
         table.add_row('Next statuses', ', '.join(str(status) for status in task.get_next_statuses()))
         table.print()
 
-    make_todo_parser = lambda _: make_parser('todo')
-
-    def do_todo(self, args):
-        task = self._get_task(args.node_index)
-        self.last_nodes.clear()
-        for node in task.iter_subtasks():
-            task = node.task
-            if task.priority <= 0 or not task.get_next_statuses():
-                continue
-            self.last_nodes.append(node)
-        self.last_nodes.sort(key=lambda n: n.task.priority, reverse=True)
-        table = Table(3)
-        table.cols[0].align = '>'
-        for idx, node in enumerate(self.last_nodes, 1):
-            table.add_row(str(idx), node.task.name, node.task.status)
-        table.print()
-
     make_log_parser = lambda _: make_parser('log')
 
     def do_log(self, args):
@@ -304,20 +302,23 @@ class CLI(Cmd):
         parser_add.add_argument('value')
         parser_rm = subparsers.add_parser('rm')
         parser_rm.add_argument('key', nargs='+')
+        subparsers.add_parser('restore')
         return result
 
     def do_alias(self, args):
-        if args.subcmd == 'add':
-            self.aliases[args.key] = args.value
-            return
-        if args.subcmd == 'rm':
-            for key in args.key:
-                self.aliases.pop(key, None)
-            return
-        table = Table(2)
-        for key, value in self.aliases.items():
-            table.add_row(key, value)
-        table.print()
+        match args.subcmd: 
+            case 'ls':
+                table = Table(2)
+                for key, value in self.aliases.items():
+                    table.add_row(key, value)
+                table.print()
+            case 'add':
+                self.aliases[args.key] = args.value
+            case 'rm':
+                for key in args.key:
+                    self.aliases.pop(key, None)
+            case 'restore':
+                self.aliases = DEFAULT_ALIASES
 
     def make_sked_parser(self):
         result = ArgumentParser(prog='sked')
@@ -334,18 +335,18 @@ class CLI(Cmd):
 
     def do_sked(self, args):
         task = self._get_task(args.node)
-        if args.subcmd == 'add':
-            Job(task, args.time, args.cmd, args.period).add()
-            return
-        if args.subcmd == 'rm':
-            for idx in args.job_index:
-                self.last_jobs[idx - 1].remove()
-            return
-        self.last_jobs = task.jobs.copy()
-        table = Table(4)
-        for idx, job in enumerate(self.last_jobs, 1):
-            table.add_row(idx, job.time, job.cmd, job.period if job.period else '-')
-        table.print()
+        match args.subcmd:
+            case 'ls':
+                self.last_jobs = task.jobs.copy()
+                table = Table(4)
+                for idx, job in enumerate(self.last_jobs, 1):
+                    table.add_row(idx, job.time, job.cmd, job.period if job.period else '-')
+                table.print()
+            case 'add':
+                Job(task, args.time, args.cmd, args.period).add()
+            case 'rm':
+                for idx in args.job_index:
+                    self.last_jobs[idx - 1].remove()
 
     def make_note_parser(self):
         result = make_parser('note')
