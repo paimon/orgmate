@@ -1,4 +1,5 @@
 from enum import Enum, auto
+from functools import cached_property
 
 from orgmate.log import Log
 from orgmate.status import Status
@@ -40,11 +41,12 @@ class Node:
     def insert(self, subtask, after=False):
         idx = self.parent.subtasks.index(self.task)
         self.parent.add(subtask, idx + int(after))
+        self.parent.refresh()
 
     def remove(self):
         self.parent.subtasks.remove(self.task)
         self.task.parents.remove(self.parent)
-        self.parent.update_status()
+        self.parent.refresh()
 
 
 class NodeFilter:
@@ -70,7 +72,7 @@ class NodeFilter:
 
 
 class Task:
-    PUBLIC_FIELDS = ['name', 'flow', 'status', 'priority', 'aggregate']
+    PUBLIC_FIELDS = ['name', 'flow', 'status', 'priority', 'aggregate', 'weight']
     PUBLIC_RO_FIELDS = PUBLIC_FIELDS + ['progress']
 
     def __init__(self, name, status=Status.NEW, context_mode=False):
@@ -83,7 +85,6 @@ class Task:
         self.status = status
         self.flow = Flow.PARALLEL
         self.weight = 1.0
-        self.progress = 0
         if context_mode:
             self.aggregate = False
             self.priority = 0
@@ -93,6 +94,11 @@ class Task:
 
     def __repr__(self):
         return f'Task(name={self.name}, status={self.status})'
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state.pop('progress', None)
+        return state
 
     def iter_prev_tasks(self):
         for parent in self.parents:
@@ -192,7 +198,7 @@ class Task:
             self.subtasks.insert(index, subtask)
         subtask.parents.append(self)
         subtask.name = subtask.name.format(index)
-        self.update_status()
+        self.refresh()
 
     def iter_subtasks(self, node_filter=None, depth=0):
         if node_filter is None:
@@ -213,9 +219,8 @@ class Task:
 
     @status.setter
     def status(self, value):
-        self.log.update_status(value)
-        for task in self.parents:
-            task.update_status()
+        self.log.set_status(value)
+        self.refresh()
 
     @property
     def aggregate(self):
@@ -224,7 +229,7 @@ class Task:
     @aggregate.setter
     def aggregate(self, value):
         self._aggregate = value
-        self.update_status()
+        self.refresh()
 
     @property
     def weight(self):
@@ -233,16 +238,14 @@ class Task:
     @weight.setter
     def weight(self, value):
         self._weight = value if value >= 0 else None
-        self.update_progress()
+        self.refresh()
 
-    def update_status(self):
-        if self.aggregate and self.subtasks:
-            self.status = aggregate_status(self.subtasks)
-        self.update_progress()
-
-    def _compute_progress(self):
+    @cached_property
+    def progress(self):
         if self.status == Status.DONE:
-            return 100.0
+            return 1.0
+        if not self.aggregate:
+            return None
         result, weight_sum = 0, 0
         for task in self.subtasks:
             progress = task.progress
@@ -252,8 +255,13 @@ class Task:
             weight_sum += task.weight
         return result / weight_sum if weight_sum > 0 else 0
 
-    def update_progress(self):
-        self.progress = 100.0 * self._compute_progress()
+    def refresh(self):
+        if self.aggregate and self.subtasks:
+            self._status = aggregate_status(self.subtasks)
+        if hasattr(self, 'progress'):
+            del self.progress
+        for task in self.parents:
+            task.refresh()
 
     def checkattr(self, attr, value):
         name = f'_check_{attr}'

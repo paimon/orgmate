@@ -18,7 +18,7 @@ class Log:
     def get_status(self):
         return self.items[-1].status
 
-    def update_status(self, status):
+    def set_status(self, status):
         if self.items and self.get_status() == status:
             return
         timestamp = datetime.now() if self.current_time is None else self.current_time

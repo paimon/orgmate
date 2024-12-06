@@ -15,7 +15,8 @@ from orgmate.cli_utils import (
     NodeIndexError,
     StatusInvariantViolation,
     edit_text,
-    parse_duration
+    parse_duration,
+    format_attr
 )
 from orgmate.job import Job
 from orgmate.log import Log
@@ -24,8 +25,6 @@ from orgmate.task import Flow, Status, Task, NodeFilter
 
 DEFAULT_ALIASES = {
     'ls': 'tree -d 1 -f status -f progress',
-    'todo': 'tree -r -f status',
-    'find': 'tree -k',
     'do': 'set status active',
     'pause': 'set status inactive',
     'complete': 'set status done',
@@ -70,6 +69,15 @@ class CLI(Cmd):
         self.db['root'] = self.root
         self.last_save = datetime.now()
 
+    def _print_last_nodes(self, args, flat):
+        table = Table(2 + len(args.field))
+        table.cols[0].align = '>'
+        for idx, node in enumerate(self.last_nodes, 1):
+            fields = [idx, node.get_name(flat)]
+            fields += [format_attr(node.task, field) for field in args.field]
+            table.add_row(*fields)
+        table.print()
+
     def preloop(self):
         self.db = shelve.open('data')
         if not self.clear_state and 'root' in self.db:
@@ -103,7 +111,7 @@ class CLI(Cmd):
         self.db.close()
 
     def emptyline(self):
-        return self.onecmd(DEFAULT_ALIASES['todo'])
+        return self.onecmd('find')
 
     def default(self, line):
         for key, val in self.aliases.items():
@@ -154,36 +162,35 @@ class CLI(Cmd):
 
     def make_tree_parser(self):
         result = ArgumentParser(prog='tree')
-        group = result.add_mutually_exclusive_group()
-        group.add_argument('-a', '--all', action='store_true')
-        group.add_argument('-r', '--relevant', action='store_true')
+        result.add_argument('-a', '--all', action='store_true')
         result.add_argument('-d', '--depth', type=int)
         result.add_argument('-f', '--field', action='append', choices=Task.PUBLIC_RO_FIELDS, default=[])
-        result.add_argument('-k', '--keyword', type=str.lower)
         result.add_argument('node_index', type=int, nargs='?')
         return result
 
     def do_tree(self, args):
         task = self._get_task(args.node_index)
-        flat = args.relevant or args.keyword
-        node_filter = NodeFilter(max_depth=args.depth, skip_done=not args.all, skip_seen=flat)
         self.last_nodes.clear()
-        for n in task.iter_subtasks(node_filter):
-            if not (args.keyword is None or args.keyword in n.task.name.lower()):
-                continue
-            if args.relevant and not n.task.is_relevant():
-                continue
-            self.last_nodes.append(n)
-        if flat:
-            self.last_nodes.sort(key=lambda n: n.task.priority, reverse=True)
+        node_filter = NodeFilter(max_depth=args.depth, skip_done=not args.all, skip_seen=False)
+        self.last_nodes = list(task.iter_subtasks(node_filter))
+        self._print_last_nodes(args, flat=False)
 
-        table = Table(2 + len(args.field))
-        table.cols[0].align = '>'
-        for idx, node in enumerate(self.last_nodes, 1):
-            fields = [idx, node.get_name(flat)]
-            fields += [getattr(node.task, field) for field in args.field]
-            table.add_row(*fields)
-        table.print()
+    def make_find_parser(self):
+        result = ArgumentParser(prog='find')
+        result.add_argument('-n', '--node', type=int)
+        result.add_argument('-a', '--all', action='store_true')
+        result.add_argument('-f', '--field', action='append', choices=Task.PUBLIC_RO_FIELDS, default=[])
+        result.add_argument('keyword', type=str.lower, nargs='?')
+        return result
+
+    def do_find(self, args):
+        task = self._get_task(args.node)
+        self.last_nodes.clear()
+        node_filter = NodeFilter(skip_done=not args.all, skip_seen=True)
+        check = (lambda t: args.keyword in t.name.lower()) if args.keyword else (lambda t: t.is_relevant())
+        self.last_nodes = [n for n in task.iter_subtasks(node_filter) if check(n.task)]
+        self.last_nodes.sort(key=lambda n: n.task.priority, reverse=True)
+        self._print_last_nodes(args, flat=True)
 
     def make_rm_parser(self):
         result = ArgumentParser(prog='rm')
@@ -275,13 +282,10 @@ class CLI(Cmd):
     def do_info(self, args):
         task = self._get_task(args.node_index)
         table = Table(2)
-        table.add_row('Name', task.name)
-        table.add_row('Status', task.status)
-        table.add_row('Flow', task.flow)
-        table.add_row('Priority', str(task.priority))
-        table.add_row('Aggregate', str(task.aggregate))
-        table.add_row('Progress', str(task.progress))
-        table.add_row('Next statuses', ', '.join(str(status) for status in task.get_next_statuses()))
+        for attr in Task.PUBLIC_RO_FIELDS:
+            table.add_row(attr.capitalize(), format_attr(task, attr))
+        next_statuses = ', '.join(str(status) for status in task.get_next_statuses())
+        table.add_row('Next statuses', next_statuses or '-')
         table.print()
 
     make_log_parser = lambda _: make_parser('log')
