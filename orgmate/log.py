@@ -14,6 +14,7 @@ class Log:
 
     def __init__(self):
         self.items = []
+        self.set_status(Status.NEW)
 
     def get_status(self):
         return self.items[-1].status
