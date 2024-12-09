@@ -13,6 +13,6 @@ class Status(Enum):
 ESC_COLORS = {
     Status.NEW: '\033[37m',
     Status.ACTIVE: '\033[32m',
-    Status.INACTIVE: '\033[34m',
+    Status.INACTIVE: '\033[36m',
     Status.DONE: '\033[90m',
 }
