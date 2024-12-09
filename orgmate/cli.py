@@ -19,7 +19,7 @@ from orgmate.cli_utils import (
 )
 from orgmate.job import Job
 from orgmate.log import Log
-from orgmate.node import NodeFilter
+from orgmate.node import Node, NodeFilter
 from orgmate.task import Flow, Status, Task, NodeFilter
 
 
