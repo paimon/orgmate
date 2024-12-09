@@ -9,15 +9,14 @@ import re
 import shlex
 import subprocess
 
+from orgmate.status import Status
+
 
 DEFAULT_EDITOR = '/usr/bin/vim'
 CMD_PREFIX = 'do_'
 PARSER_TEMPLATE = 'make_{}_parser'
 HELP_TEMPLATE = 'help_{}'
 DURATION_REGEX = re.compile(r'((?P<days>\d+)d)?\s*((?P<hours>\d+):(?P<minutes>\d+))?')
-ATTR_FORMATTERS = {
-    'progress': lambda val: '-' if val is None else f'{100 * val:.2f}'
-}
 
 
 class NodeIndexError(Exception):
@@ -112,8 +111,3 @@ def parse_duration(duration_str):
     match = DURATION_REGEX.search(duration_str)
     kwargs = {key: int(value) for key, value in match.groupdict('0').items()}
     return timedelta(**kwargs)
-
-
-def format_attr(obj, attr):
-    formatter = ATTR_FORMATTERS.get(attr, str)
-    return formatter(getattr(obj, attr))

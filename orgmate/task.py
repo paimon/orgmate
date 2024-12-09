@@ -3,9 +3,7 @@ from functools import cached_property
 
 from orgmate.log import Log
 from orgmate.status import Status
-
-
-INDENT_WIDTH = 4
+from orgmate.node import Node, NodeFilter
 
 
 class Flow(Enum):
@@ -25,50 +23,6 @@ def aggregate_status(subtasks):
     if any(task.status == Status.ACTIVE for task in subtasks):
         return Status.ACTIVE
     return Status.INACTIVE
-
-
-class Node:
-    def __init__(self, parent, task, depth):
-        self.parent = parent
-        self.task = task
-        self.depth = depth
-
-    def get_name(self, flat=False):
-        indent = '' if flat else ' ' * self.depth * INDENT_WIDTH
-        suffix = '/' if self.task.subtasks else ''
-        return f'{indent}{self.task.name}{suffix}'
-
-    def insert(self, subtask, after=False):
-        idx = self.parent.subtasks.index(self.task)
-        self.parent.add(subtask, idx + int(after))
-        self.parent.refresh()
-
-    def remove(self):
-        self.parent.subtasks.remove(self.task)
-        self.task.parents.remove(self.parent)
-        self.parent.refresh()
-
-
-class NodeFilter:
-    def __init__(self, max_depth=None, skip_done=False, skip_seen=True):
-        self.max_depth = max_depth
-        self.skip_done = skip_done
-        self.skip_seen = skip_seen
-        self.seen = set()
-
-    def check(self, node):
-        if self.max_depth is not None and self.max_depth <= node.depth:
-            return False
-        if self.skip_done and node.task.status == Status.DONE:
-            return False
-        if node.parent in self.seen:
-            return False
-        if self.skip_seen and (node.task in self.seen):
-            return False
-        return True
-
-    def finish(self, node):
-        self.seen.add(node.task)
 
 
 class Task:
@@ -199,14 +153,14 @@ class Task:
         subtask.name = subtask.name.format(index)
         self.refresh()
 
-    def iter_subtasks(self, node_filter=None, depth=0):
+    def iter_subtasks(self, node_filter=None, depth=None):
         if node_filter is None:
             node_filter = NodeFilter()
         for task in self.subtasks:
             node = Node(self, task, depth)
             if node_filter.check(node):
                 yield node
-                yield from task.iter_subtasks(node_filter, depth + 1)
+                yield from task.iter_subtasks(node_filter, None if depth is None else depth + 1)
                 node_filter.finish(node)
 
     def is_relevant(self):

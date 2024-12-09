@@ -16,10 +16,10 @@ from orgmate.cli_utils import (
     StatusInvariantViolation,
     edit_text,
     parse_duration,
-    format_attr
 )
 from orgmate.job import Job
 from orgmate.log import Log
+from orgmate.node import NodeFilter
 from orgmate.task import Flow, Status, Task, NodeFilter
 
 
@@ -69,12 +69,12 @@ class CLI(Cmd):
         self.db['root'] = self.root
         self.last_save = datetime.now()
 
-    def _print_last_nodes(self, args, flat):
+    def _print_last_nodes(self, args):
         table = Table(2 + len(args.field))
         table.cols[0].align = '>'
         for idx, node in enumerate(self.last_nodes, 1):
-            fields = [idx, node.get_name(flat)]
-            fields += [format_attr(node.task, field) for field in args.field]
+            fields = [idx, node.name]
+            fields += [getattr(node, field) for field in args.field]
             table.add_row(*fields)
         table.print()
 
@@ -172,8 +172,8 @@ class CLI(Cmd):
         task = self._get_task(args.node_index)
         self.last_nodes.clear()
         node_filter = NodeFilter(max_depth=args.depth, skip_done=not args.all, skip_seen=False)
-        self.last_nodes = list(task.iter_subtasks(node_filter))
-        self._print_last_nodes(args, flat=False)
+        self.last_nodes = list(task.iter_subtasks(node_filter, 0))
+        self._print_last_nodes(args)
 
     def make_find_parser(self):
         result = ArgumentParser(prog='find')
@@ -190,7 +190,7 @@ class CLI(Cmd):
         check = (lambda t: args.keyword in t.name.lower()) if args.keyword else (lambda t: t.is_relevant())
         self.last_nodes = [n for n in task.iter_subtasks(node_filter) if check(n.task)]
         self.last_nodes.sort(key=lambda n: n.task.priority, reverse=True)
-        self._print_last_nodes(args, flat=True)
+        self._print_last_nodes(args)
 
     def make_rm_parser(self):
         result = ArgumentParser(prog='rm')
@@ -282,8 +282,9 @@ class CLI(Cmd):
     def do_info(self, args):
         task = self._get_task(args.node_index)
         table = Table(2)
+        node = Node(None, task)
         for attr in Task.PUBLIC_RO_FIELDS:
-            table.add_row(attr.capitalize(), format_attr(task, attr))
+            table.add_row(attr.capitalize(), getattr(node, attr))
         next_statuses = ', '.join(str(status) for status in task.get_next_statuses())
         table.add_row('Next statuses', next_statuses or '-')
         table.print()
