@@ -34,7 +34,7 @@ class Task:
         self.parents = []
         self.subtasks = []
         self.log = Log()
-        self.flow = Flow.PARALLEL
+        self.flow = Flow.SEQUENTIAL
         self.note = ''
         self.jobs = []
         if context_mode:
