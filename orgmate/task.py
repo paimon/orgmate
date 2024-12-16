@@ -172,6 +172,8 @@ class Task:
 
     @status.setter
     def status(self, value):
+        if self.aggregate and self.subtasks:
+            return
         self.log.set_status(value)
         self.refresh()
 
@@ -210,7 +212,7 @@ class Task:
 
     def refresh(self):
         if self.aggregate and self.subtasks:
-            self._status = aggregate_status(self.subtasks)
+            self.log.set_status(aggregate_status(self.subtasks))
         if hasattr(self, 'progress'):
             del self.progress
         for task in self.parents:
