@@ -1,7 +1,12 @@
+from datetime import timedelta
+
 from orgmate.status import Status, ESC_COLORS as STATUS_ESC_COLORS
 
 
 class Node:
+    PUBLIC_FIELDS = ['name', 'flow', 'status', 'priority', 'aggregate', 'weight']
+    PUBLIC_RO_FIELDS = PUBLIC_FIELDS + ['progress', 'duration']
+
     INDENT_WIDTH = 4
     ESC_RESET = '\033[0m'
 
@@ -19,6 +24,11 @@ class Node:
         suffix = '/' if self.task.subtasks else ''
         esc_color = STATUS_ESC_COLORS[self.task.status]
         return f'{indent}{esc_color}{self.task.name}{suffix}{self.ESC_RESET}'
+
+    @property
+    def duration(self):
+        seconds = self.task.log.get_duration().total_seconds()
+        return str(timedelta(seconds=round(seconds)))
 
     @property
     def progress(self):

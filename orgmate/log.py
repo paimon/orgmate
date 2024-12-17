@@ -19,6 +19,9 @@ class Log:
     def get_status(self):
         return self.items[-1].status
 
+    def get_duration(self):
+        return datetime.now() - self.items[-1].timestamp
+
     def set_status(self, status):
         if self.items and self.get_status() == status:
             return

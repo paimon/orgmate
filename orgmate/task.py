@@ -26,9 +26,6 @@ def aggregate_status(subtasks):
 
 
 class Task:
-    PUBLIC_FIELDS = ['name', 'flow', 'status', 'priority', 'aggregate', 'weight']
-    PUBLIC_RO_FIELDS = PUBLIC_FIELDS + ['progress']
-
     def __init__(self, name, context_mode=False):
         self.name = name
         self.parents = []

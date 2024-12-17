@@ -28,6 +28,7 @@ DEFAULT_ALIASES = {
     'do': 'set status active',
     'pause': 'set status inactive',
     'complete': 'set status done',
+    'todo': 'find -f duration'
 }
 
 logger = logging.getLogger(__name__)
@@ -111,7 +112,7 @@ class CLI(Cmd):
         self.db.close()
 
     def emptyline(self):
-        return self.onecmd('find')
+        return self.onecmd('todo')
 
     def default(self, line):
         for key, val in self.aliases.items():
@@ -164,7 +165,7 @@ class CLI(Cmd):
         result = ArgumentParser(prog='tree')
         result.add_argument('-a', '--all', action='store_true')
         result.add_argument('-d', '--depth', type=int)
-        result.add_argument('-f', '--field', action='append', choices=Task.PUBLIC_RO_FIELDS, default=[])
+        result.add_argument('-f', '--field', action='append', choices=Node.PUBLIC_RO_FIELDS, default=[])
         result.add_argument('node_index', type=int, nargs='?')
         return result
 
@@ -179,7 +180,7 @@ class CLI(Cmd):
         result = ArgumentParser(prog='find')
         result.add_argument('-n', '--node', type=int)
         result.add_argument('-a', '--all', action='store_true')
-        result.add_argument('-f', '--field', action='append', choices=Task.PUBLIC_RO_FIELDS, default=[])
+        result.add_argument('-f', '--field', action='append', choices=Node.PUBLIC_RO_FIELDS, default=[])
         result.add_argument('keyword', type=str.lower, nargs='?')
         return result
 
@@ -242,14 +243,14 @@ class CLI(Cmd):
     def make_set_parser(self):
         result = ArgumentParser(prog='set')
         result.add_argument('-f', '--force', action='store_true')
-        result.add_argument('key', choices=Task.PUBLIC_FIELDS)
+        result.add_argument('key', choices=Node.PUBLIC_FIELDS)
         result.add_argument('value')
         result.add_argument('node_index', type=int, nargs='*')
         return result
 
     def complete_set(self, text, line, *ignored):
         choices = {
-            'set': Task.PUBLIC_FIELDS,
+            'set': Node.PUBLIC_FIELDS,
             'status': [v.name.lower() for v in Status],
             'flow': [v.name.lower() for v in Flow],
             'aggregate': ['true', 'false'],
@@ -283,7 +284,7 @@ class CLI(Cmd):
         task = self._get_task(args.node_index)
         table = Table(2)
         node = Node(None, task)
-        for attr in Task.PUBLIC_RO_FIELDS:
+        for attr in Node.PUBLIC_RO_FIELDS:
             table.add_row(attr.capitalize(), getattr(node, attr))
         next_statuses = ', '.join(str(status) for status in task.get_next_statuses())
         table.add_row('Next statuses', next_statuses or '-')
