@@ -1,7 +1,10 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from orgmate.status import Status
+
+
+FINISHED_TASK_TTL = timedelta(days=90)
 
 
 class Log:
@@ -28,3 +31,6 @@ class Log:
         timestamp = datetime.now() if self.current_time is None else self.current_time
         item = Log.Item(status, timestamp)
         self.items.append(item)
+
+    def is_obsolete(self):
+        return self.get_status() == Status.DONE and self.get_duration() > FINISHED_TASK_TTL

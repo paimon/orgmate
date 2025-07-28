@@ -86,6 +86,7 @@ class CLI(Cmd):
             self.aliases = self.db['aliases']
         else:
             self.root = Task(getpass.getuser())
+        self.root.clear_obsolete()
         self._select_task(self.root)
         Job.init_schedule(self.root)
         self.last_nodes = []

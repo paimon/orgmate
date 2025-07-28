@@ -220,3 +220,11 @@ class Task:
         if hasattr(self, name):
             return getattr(self, name)(value)
         return True
+
+    def clear_obsolete(self):
+        for task in list(self.subtasks):
+            if task.log.is_obsolete():
+                self.subtasks.remove(task)
+            else:
+                task.clear_obsolete()
+        self.refresh()
